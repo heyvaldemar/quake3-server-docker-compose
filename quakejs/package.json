@@ -21,7 +21,7 @@
     "express": "~4.19.2",
     "optimist": "~0.6.0",
     "quakejs-files": "0.0.3",
-    "send": "^0.16.2",
+    "send": "^0.18.0",
     "temp": "~0.5.1",
     "underscore": "~1.13.6",
     "winston": "2.4.0",
