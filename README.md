@@ -2,6 +2,8 @@
 
 📙 The complete installation guide is available on my [website](https://www.heyvaldemar.com/install-quake-3-server-using-docker-compose/).
 
+🐳 You can find the Docker image on [Docker Hub](https://hub.docker.com/r/heyvaldemar/quake3-server).
+
 ❗ Change variables in the `.env` and `server.cfg` to meet your requirements.
 
 💡 Note that the `.env` file and `server.cfg` file should be in the same directory as `quake3-server-docker-compose.yml`.
