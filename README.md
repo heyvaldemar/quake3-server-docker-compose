@@ -14,8 +14,6 @@ Deploy Quake 3 Server using Docker Compose:
 
 To connect to your Quake 3 server, enter the server's IP address or domain name into your web browser or directly into the Quake 3 client.
 
-💡 Note that you need to specify the IP address or a domain name of the service, previously defined in the **`.env`** file.
-
 # Quake 3 Server Management
 
 Apply new configuration after a change in the `server.cfg` using the command:
