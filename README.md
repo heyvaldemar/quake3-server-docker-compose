@@ -1,6 +1,6 @@
 # Quake 3 Server Using Docker Compose
 
-📙 The complete installation guide is available on my [website](https://www.heyvaldemar.com/install-quake-3-server-using-docker-compose/).
+📙 The complete installation guide is available on my [website](https://www.heyvaldemar.com/install-quake3-server-using-docker-compose/).
 
 🐳 You can find the Docker image on [Docker Hub](https://hub.docker.com/r/heyvaldemar/quake3-server).
 
