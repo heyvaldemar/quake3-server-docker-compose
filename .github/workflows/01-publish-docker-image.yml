@@ -1,14 +1,18 @@
 name: Publish Docker Image to Registry
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Deployment Verification"]
+    types:
+      - completed
     branches:
-      - 'main'
+      - main
 
 jobs:
   build_and_publish:
     name: Build and Publish Docker Image
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}  # Only run if the first workflow succeeded
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
