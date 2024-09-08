@@ -1,5 +1,11 @@
 # Quake 3 Server Using Docker Compose
 
+[![Deployment Verification](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/workflows/00-deployment-verification.yml/badge.svg)](https://github.com/heyvaldemar/quake3-server-docker-compose/actions)
+
+The badge displayed on my repository indicates the status of the deployment verification workflow as executed on the latest commit to the main branch.
+
+**Passing**: This means the most recent commit has successfully passed all deployment checks, confirming that the Docker Compose setup functions correctly as designed.
+
 📙 The complete installation guide is available on my [website](https://www.heyvaldemar.com/install-quake3-server-using-docker-compose/).
 
 🐳 You can find the Docker image on [Docker Hub](https://hub.docker.com/r/heyvaldemar/quake3-server).
