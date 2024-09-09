@@ -19,15 +19,15 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
 
-  # Example for a JavaScript project using NPM (if applicable)
-  - package-ecosystem: "npm"
+  # Terraform updates (for Terraform configuration files)
+  - package-ecosystem: "terraform"
     directory: "/"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
 
-  # Example for a Java project using Maven (if applicable)
-  - package-ecosystem: "maven"
+  # NPM updates (for JavaScript projects using npm)
+  - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
