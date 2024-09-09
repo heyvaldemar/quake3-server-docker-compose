@@ -1,5 +1,5 @@
 # Use Ubuntu as the base image
-FROM ubuntu:24.04
+FROM ubuntu:22.04
 
 # Set environment variables for non-interactive apt installations
 ARG DEBIAN_FRONTEND=noninteractive
