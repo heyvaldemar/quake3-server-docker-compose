@@ -1,4 +1,4 @@
-# Use Ubuntu 22.04 as the base image
+# Use Ubuntu as the base image
 FROM ubuntu:24.04
 
 # Set environment variables for non-interactive apt installations
