@@ -5,7 +5,7 @@
 
 version: 2
 updates:
-  # Docker dependency updates (for Dockerfiles or docker-compose files)
+  # Docker dependency updates (for Dockerfiles)
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
