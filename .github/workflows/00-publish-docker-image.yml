@@ -6,9 +6,10 @@ on:
       - main
 
 jobs:
-  build_and_publish:
+  build-and-publish:
     name: Build and Publish Docker Image
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -31,9 +32,13 @@ jobs:
       - name: Build and Push Image
         uses: docker/build-push-action@v6
         with:
+          context: .
+          file: Dockerfile
           push: true
-          tags: heyvaldemar/quake3-server:latest, heyvaldemar/quake3-server:${{ github.sha }}
+          tags: |
+            heyvaldemar/quake3-server:latest
+            heyvaldemar/quake3-server:${{ github.sha }}
+          platforms: linux/amd64,linux/arm64
+          pull: true
           cache-from: type=registry,ref=heyvaldemar/quake3-server:cache
           cache-to: type=inline
-          platforms: linux/amd64,linux/arm64
-          file: Dockerfile
