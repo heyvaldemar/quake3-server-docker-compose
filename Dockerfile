@@ -24,7 +24,9 @@ COPY quakejs/ /quakejs/
 WORKDIR /quakejs
 
 # Fix dead npm dependency and install
-RUN sed -i 's|"quakejs-files": "0.0.3"|"quakejs-files": "https://github.com/inolen/quakejs-files.git"|' package.json && \
+RUN git config --global url."https://".insteadOf ssh:// && \
+    git config --global url."https://github.com/".insteadOf "git@github.com:" && \
+    sed -i 's|"quakejs-files": "0.0.3"|"quakejs-files": "https://github.com/inolen/quakejs-files.git"|' package.json && \
     rm -f package-lock.json && \
     npm install --legacy-peer-deps
 
