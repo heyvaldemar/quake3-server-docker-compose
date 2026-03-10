@@ -22,7 +22,11 @@ RUN mkdir -p /etc/apt/keyrings && \
 # Copy the local QuakeJS repository into the image
 COPY quakejs/ /quakejs/
 WORKDIR /quakejs
-RUN npm install
+
+# Fix dead npm dependency and install
+RUN sed -i 's|"quakejs-files": "0.0.3"|"quakejs-files": "github:inolen/quakejs-files"|' package.json && \
+    rm -f package-lock.json && \
+    npm install --legacy-peer-deps
 
 # Copy configurations
 COPY server.cfg /quakejs/base/baseq3/server.cfg
