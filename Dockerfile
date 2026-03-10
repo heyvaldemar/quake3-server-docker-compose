@@ -7,7 +7,7 @@ ENV TZ=US/Eastern
 
 # Update and install required packages
 RUN apt-get update && apt-get upgrade -y && \
-    apt-get install -y curl jq apache2 wget apt-utils ca-certificates gnupg && \
+    apt-get install -y curl jq apache2 wget apt-utils ca-certificates gnupg git && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js 22 LTS via NodeSource current method
