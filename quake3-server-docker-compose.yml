@@ -5,6 +5,7 @@ services:
       - ./server.cfg:/quakejs/base/baseq3/server.cfg
     environment:
       SERVER: ${QUAKE3_SERVER_IP_OR_HOSTNAME}
+      RCON_PASSWORD: ${RCON_PASSWORD:?RCON_PASSWORD must be set in .env}
     ports:
       - "80:80"
       - "27960:27960"
