@@ -2,9 +2,11 @@
 
 📙 The complete installation guide is available on my [website](https://www.heyvaldemar.com/install-quake3-server-using-docker-compose/).
 
-❗ Change variables in the `.env` and `server.cfg` to meet your requirements.
+❗ Copy `.env.example` to `.env` and set `RCON_PASSWORD` (required) plus any other variables before first start.
 
-💡 Note that the `.env` file and `server.cfg` file should be in the same directory as `quake3-server-docker-compose.yml`.
+💡 `.env` and `server.cfg` must sit in the same directory as `quake3-server-docker-compose.yml`.
+
+> ⚠️ The pre-rotation RCON password that was previously hardcoded in `server.cfg` is compromised (it remains in git history). Anyone who deployed with the old configuration should rotate their live RCON password.
 
 Deploy Quake 3 Server using Docker Compose:
 
