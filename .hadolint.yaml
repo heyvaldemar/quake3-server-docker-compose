@@ -1,0 +1,15 @@
+# hadolint configuration for quake3-server-docker-compose.
+# https://github.com/hadolint/hadolint
+
+ignored:
+  # DL3008: Pin versions in apt-get install.
+  # We deliberately track upstream security updates via the weekly rebuild
+  # cron in publish.yml instead of pinning apt package versions, which would
+  # require frequent manual bumps and would not improve supply-chain
+  # integrity in a meaningful way for this image.
+  - DL3008
+
+failure-threshold: warning
+
+trustedRegistries:
+  - docker.io
