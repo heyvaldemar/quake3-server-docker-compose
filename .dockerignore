@@ -1,0 +1,12 @@
+.git
+.github
+.claude
+.hadolint.yaml
+.gitignore
+.env
+.env.example
+*.md
+CHANGELOG.md
+LICENSE
+SECURITY.md
+quake3-server-docker-compose.yml
