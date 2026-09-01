@@ -1,0 +1,104 @@
+name: Deployment Verification
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  schedule:
+    # Weekly rebuild to catch base-image and dependency drift.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: deployment-verification-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint shell scripts, Dockerfile, and workflow YAML
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: ShellCheck
+        run: |
+          docker run --rm -v "$PWD:/mnt" -w /mnt \
+            koalaman/shellcheck-alpine:stable \
+            shellcheck ./*.sh
+
+      - name: hadolint (Dockerfile linting)
+        run: |
+          docker run --rm -i -v "$PWD/.hadolint.yaml:/.hadolint.yaml:ro" \
+            hadolint/hadolint < Dockerfile
+
+      - name: actionlint (GitHub Actions workflow linting)
+        run: |
+          docker run --rm -v "$PWD:/mnt" -w /mnt \
+            rhysd/actionlint:1.7.12 \
+            -color
+
+  build-and-test:
+    name: Build the image + QuakeJS web smoke
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    env:
+      DOCKER_COMPOSE_FILE: quake3-server-docker-compose.yml
+      COMPOSE_PROJECT_NAME: quake3
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build the server image from this checkout
+        # The compose file normally pulls the published image; CI builds
+        # the Dockerfile as-is so every push proves the image still
+        # builds and boots before the publish workflow ships it.
+        run: docker build -t heyvaldemar/quake3-server:ci .
+
+      - name: Generate test .env with an ephemeral RCON password
+        run: |
+          cat > .env <<EOF
+          QUAKE3_SERVER_IMAGE_TAG=heyvaldemar/quake3-server:ci
+          QUAKE3_SERVER_IP_OR_HOSTNAME=127.0.0.1
+          RCON_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=' | head -c 32)
+          EOF
+          echo "Generated ephemeral .env for CI run"
+
+      - name: Start up services using Docker Compose
+        run: docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" up -d
+
+      - name: Wait for the QuakeJS web client to answer
+        run: |
+          # shellcheck disable=SC2016
+          timeout 5m bash -c 'while ! curl -fs -o /dev/null -w "%{http_code}" http://127.0.0.1/ | grep -q 200; do
+            echo "Waiting for the web client..."
+            sleep 5
+          done'
+          curl -fs -o /dev/null -w "QuakeJS web client: %{http_code}\n" http://127.0.0.1/
+
+      - name: Verify the game port is listening
+        run: |
+          docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" logs | tail -20
+          (echo > /dev/udp/127.0.0.1/27960) && echo "UDP 27960 reachable"
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" logs
+
+      - name: Shutdown Docker Compose services
+        if: always()
+        run: docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" down

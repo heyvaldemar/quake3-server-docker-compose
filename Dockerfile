@@ -5,9 +5,13 @@ FROM ubuntu:22.04
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=US/Eastern
 
+# Pipes below (curl | gpg, echo | tee) should fail the build if any stage
+# fails, not just the last one
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
 # Update and install required packages
 RUN apt-get update && apt-get upgrade -y && \
-    apt-get install -y curl jq apache2 wget apt-utils ca-certificates gnupg git && \
+    apt-get install -y --no-install-recommends curl jq apache2 wget apt-utils ca-certificates gnupg git && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js 22 LTS via NodeSource current method
@@ -16,15 +20,16 @@ RUN mkdir -p /etc/apt/keyrings && \
       gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
     echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" | \
       tee /etc/apt/sources.list.d/nodesource.list && \
-    apt-get update && apt-get install -y nodejs && \
+    apt-get update && apt-get install -y --no-install-recommends nodejs && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Copy the local QuakeJS repository into the image
 COPY quakejs/ /quakejs/
 WORKDIR /quakejs
 
-# Fix dead npm dependency: replace any value (version or SSH URL) with HTTPS tarball
-RUN jq '.dependencies["quakejs-files"] = "https://github.com/inolen/quakejs-files/archive/refs/heads/master.tar.gz"' \
+# Fix dead npm dependency: the original inolen/quakejs-files repo and its
+# npm package are both gone — install the surviving fork's tarball instead
+RUN jq '.dependencies["quakejs-files"] = "https://github.com/JoshEngebretson/quakejs-files/archive/refs/heads/master.tar.gz"' \
       package.json > /tmp/pkg.json && mv /tmp/pkg.json package.json && \
     rm -f package-lock.json && \
     npm install --legacy-peer-deps

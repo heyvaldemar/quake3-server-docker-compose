@@ -36,9 +36,16 @@ fi
 # cpma). If the host volume-mounts its own server.cfg via docker-compose,
 # that file is rewritten here too so compose users never have to edit the
 # config.
+# `cat > file` instead of `sed -i`: sed -i replaces the file by rename,
+# which fails with "Device or resource busy" on a bind-mounted single
+# file (the docker-compose setup mounts server.cfg exactly like that),
+# and under `set -e` that killed the container in a restart loop.
 for cfg in /quakejs/base/baseq3/server.cfg /quakejs/base/cpma/server.cfg; do
   if [ -f "$cfg" ]; then
-    sed -i "s|%RCON_PASSWORD%|${RCON_PASSWORD}|g" "$cfg"
+    tmp=$(mktemp)
+    sed "s|%RCON_PASSWORD%|${RCON_PASSWORD}|g" "$cfg" > "$tmp"
+    cat "$tmp" > "$cfg"
+    rm -f "$tmp"
   fi
 done
 
@@ -52,5 +59,10 @@ sed -i "s/'quakejs:/window.location.hostname + ':/g" index.html
 
 # Start the QuakeJS dedicated server. `exec` replaces the shell so node
 # becomes PID 1 and receives SIGTERM/SIGINT directly.
+# fs_cdn points at the Apache in this same container: the game assets are
+# vendored into the image and served under /assets, because the public
+# content.quakejs.com CDN is dead (http 301s to an https endpoint that
+# answers 526). Also: `+set dedicated 1` — the old command line was
+# missing the `+`, so the dedicated flag never reached the engine.
 cd /quakejs
-exec node build/ioq3ded.js +set fs_game baseq3 set dedicated 1 +exec server.cfg
+exec node build/ioq3ded.js +set fs_game baseq3 +set fs_cdn "127.0.0.1:80" +set dedicated 1 +exec server.cfg

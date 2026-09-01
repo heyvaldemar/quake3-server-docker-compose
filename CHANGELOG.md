@@ -7,7 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no unreleased changes yet)_
+
+## [1.0.0] - 2026-09-01
+
+### Fixed (the server could no longer start at all)
+
+- **Game assets now come from inside the image.** The public
+  content.quakejs.com CDN is dead (http 301s to an https endpoint that
+  answers 526), and the dedicated server downloaded its paks from there
+  on every start — so every fresh container failed with "Failed to
+  download and parse manifest". The assets were already vendored under
+  `/var/www/html/assets`; `fs_cdn` now points at the container's own
+  Apache.
+- **`+set dedicated 1` reached the engine for the first time** — the old
+  command line was missing the `+` on `set dedicated 1`.
+- **RCON substitution works with the compose bind mount**: `sed -i`
+  replaces files by rename, which fails on a bind-mounted single file
+  ("Device or resource busy") and, under `set -e`, put the container in
+  a restart loop. The placeholder substitution now overwrites file
+  contents in place.
+- **The npm dependency builds again**: the original `inolen/quakejs-files`
+  repository and npm package are gone; the build installs the surviving
+  fork's tarball.
+- Dockerfile lint findings (`--no-install-recommends`, `pipefail`); a
+  removed input on `docker/setup-buildx-action` v4 in the publish
+  workflow.
+
 ### Added
+
+- **Deployment Verification workflow**: shellcheck + hadolint +
+  actionlint, then a job that builds the image from the checkout, boots
+  the compose stack, and requires the QuakeJS web client to answer and
+  the game port to be reachable.
+
+### Added (pre-1.0, unreleased)
 - `LICENSE` — canonical MIT license text at repo root.
 - `SECURITY.md` — vulnerability disclosure policy, supported versions, and a
   callout for the pre-PR-#14 RCON password rotation advisory.
@@ -44,3 +78,6 @@ Earlier commits did not follow Keep-a-Changelog. Highlights:
   [heyvaldemar/aws-kubectl-docker](https://github.com/heyvaldemar/aws-kubectl-docker).
 
 [Unreleased]: https://github.com/heyvaldemar/quake3-server-docker-compose/commits/main
+
+[Unreleased]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/heyvaldemar/quake3-server-docker-compose/releases/tag/v1.0.0
