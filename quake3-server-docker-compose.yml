@@ -1,6 +1,16 @@
 services:
   quake3-server:
     image: ${QUAKE3_SERVER_IMAGE_TAG}
+    # Resource limits as .env-overridable defaults (e.g. QUAKE3_SERVER_MEMORY_LIMIT=2g);
+    # the override survives every git pull.
+    deploy:
+      resources:
+        limits:
+          memory: ${QUAKE3_SERVER_MEMORY_LIMIT:-512m}
+          cpus: "${QUAKE3_SERVER_CPU_LIMIT:-1.0}"
+        reservations:
+          memory: ${QUAKE3_SERVER_MEMORY_RESERVATION:-64m}
+          cpus: "${QUAKE3_SERVER_CPU_RESERVATION:-0.25}"
     volumes:
       - ./server.cfg:/quakejs/base/baseq3/server.cfg
     environment:
