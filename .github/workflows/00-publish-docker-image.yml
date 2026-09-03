@@ -69,8 +69,8 @@ jobs:
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
         run: |
-          new="heyvaldemar/quake3-server:${GITHUB_SHA}@${DIGEST}"
-          sed -i -E "s|heyvaldemar/quake3-server:[0-9a-f]{40}@sha256:[0-9a-f]{64}|${new}|" quake3-server-docker-compose.yml
+          new="${GITHUB_SHA}@${DIGEST}"
+          sed -i -E "s|[0-9a-f]{40}@sha256:[0-9a-f]{64}|${new}|" quake3-server-docker-compose.yml
           grep -q "$new" quake3-server-docker-compose.yml || { echo "pin pattern not found in the compose file" >&2; exit 1; }
           if git diff --quiet; then
             echo "compose file already pins $new"
