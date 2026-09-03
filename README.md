@@ -4,7 +4,7 @@
 [![Publish Docker Image](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/workflows/00-publish-docker-image.yml/badge.svg?branch=main)](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/workflows/00-publish-docker-image.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-This repository runs a dedicated **Quake 3 Arena** server with the **QuakeJS** web client in one container: players open the server's address in a browser and play, no client install. The image is built from this repository (Dockerfile, vendored QuakeJS, game assets baked in) and published to Docker Hub as [`heyvaldemar/quake3-server`](https://hub.docker.com/r/heyvaldemar/quake3-server).
+This repository runs a dedicated Quake 3 Arena server with the QuakeJS web client in one container: players open the server's address in a browser and play, no client install. The image is built from this repository (Dockerfile, vendored QuakeJS, game assets baked in) and published to Docker Hub as [`heyvaldemar/quake3-server`](https://hub.docker.com/r/heyvaldemar/quake3-server).
 
 📙 The complete installation guide is on my [website](https://www.heyvaldemar.com/install-quake3-server-using-docker-compose/).
 
@@ -48,7 +48,7 @@ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1/
 
 - **Container exits immediately with `RCON_PASSWORD is still the .env.example placeholder`.** The entrypoint refuses the placeholder and anything shorter than 16 characters. Set a real value in `.env` and `up -d` again.
 - **The page loads but the client cannot connect.** `QUAKE3_SERVER_IP_OR_HOSTNAME` must be the address players reach the server at (public IP or DNS name), not `0.0.0.0` and not the Docker-internal address; the web client is told to connect there.
-- **Players outside your network cannot join.** Open **80/tcp** (web client) and **27960/tcp** (game traffic over WebSocket) in the firewall.
+- **Players outside your network cannot join.** Open 80/tcp (web client) and 27960/tcp (game traffic over WebSocket) in the firewall.
 
 ## Supply chain trust
 
