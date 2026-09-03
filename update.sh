@@ -21,7 +21,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 COMPOSE_FILE="quake3-server-docker-compose.yml"
-PROJECT="${COMPOSE_PROJECT_NAME:-quake3}"
+PROJECT="${COMPOSE_PROJECT_NAME:-quake3-server}"
 DRY_RUN=false
 ALLOW_MAJOR=false
 for arg in "$@"; do

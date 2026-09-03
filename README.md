@@ -1,106 +1,115 @@
-# Quake 3 Server Using Docker Compose
+# Quake 3 Server (QuakeJS) — Docker Compose
 
-📙 The complete installation guide is available on my [website](https://www.heyvaldemar.com/install-quake3-server-using-docker-compose/).
+[![Deployment Verification](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/workflows/deployment-verification.yml/badge.svg?branch=main)](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/workflows/deployment-verification.yml)
+[![Publish Docker Image](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/workflows/00-publish-docker-image.yml/badge.svg?branch=main)](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/workflows/00-publish-docker-image.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-❗ Copy `.env.example` to `.env` and set `RCON_PASSWORD` (required) plus any other variables before first start.
+This repository runs a dedicated **Quake 3 Arena** server with the **QuakeJS** web client in one container: players open the server's address in a browser and play, no client install. The image is built from this repository (Dockerfile, vendored QuakeJS, game assets baked in) and published to Docker Hub as [`heyvaldemar/quake3-server`](https://hub.docker.com/r/heyvaldemar/quake3-server).
 
-💡 `.env` and `server.cfg` must sit in the same directory as `quake3-server-docker-compose.yml`.
+📙 The complete installation guide is on my [website](https://www.heyvaldemar.com/install-quake3-server-using-docker-compose/).
 
-> ⚠️ The pre-rotation RCON password that was previously hardcoded in `server.cfg` is compromised (it remains in git history). Anyone who deployed with the old configuration should rotate their live RCON password.
+## Getting started
 
-Deploy Quake 3 Server using Docker Compose:
+```bash
+# 1. Clone
+git clone https://github.com/heyvaldemar/quake3-server-docker-compose
+cd quake3-server-docker-compose
 
-`docker compose -f quake3-server-docker-compose.yml -p quake3-server up -d`
+# 2. Configure: the RCON password is required, everything else has a default
+cp .env.example .env
+$EDITOR .env          # RCON_PASSWORD (generate one: openssl rand -base64 24 | tr -d '/+=' | head -c 32)
+                      # QUAKE3_SERVER_IP_OR_HOSTNAME: the public address players use
 
-To connect to your Quake 3 server, enter the server's IP address or domain name into your web browser or directly into the Quake 3 client.
-
-💡 Note that you need to specify the IP address or a domain name of the service, previously defined in the **`.env`** file.
-
-## Quake 3 Server Management
-
-Apply new configuration after a change in the `server.cfg` using the command:
-
+# 3. Deploy
+docker compose -f quake3-server-docker-compose.yml -p quake3-server up -d
 ```
-QUAKE3_SERVER_CONTAINER=$(docker ps -aqf "name=quake3-server-quake3-server") \
-&& docker container restart $QUAKE3_SERVER_CONTAINER
+
+Open `http://<your-server>/` in a browser to play. Native Quake 3 clients are not supported: QuakeJS speaks WebSocket on port 27960, not the original UDP protocol.
+
+`server.cfg` next to the compose file is the game configuration (hostname, map rotation, bots, limits). It is bind-mounted into the container; the entrypoint injects `RCON_PASSWORD` into it at start, so the file itself never carries the password. Apply a change with:
+
+```bash
+docker compose -f quake3-server-docker-compose.yml -p quake3-server restart
 ```
 
-## Author
+### What success looks like
 
-hey everyone,
+```bash
+docker compose -f quake3-server-docker-compose.yml -p quake3-server logs | grep -E "Apache|Opening IP socket|InitGame|entered the game"
+#  * Starting Apache httpd web server apache2
+# Opening IP socket: 0.0.0.0:27960
+# InitGame: \fs_cdn\127.0.0.1:80\...\mapname\q3dm1\sv_hostname\heyvaldemar.com - Quake 3 Server\...
+# broadcast: print "Daemia^7 entered the game\n"     <- bots fill the server (bot_minplayers in server.cfg)
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1/
+# 200
+```
 
-💾 I’ve been in the IT game for over 20 years, cutting my teeth with some big names like [IBM](https://www.linkedin.com/in/heyvaldemar/), [Thales](https://www.linkedin.com/in/heyvaldemar/), and [Amazon](https://www.linkedin.com/in/heyvaldemar/). These days, I wear the hat of a DevOps Consultant and Team Lead, but what really gets me going is Docker and container technology - I’m kind of obsessed!
+### Common first-deploy issues
 
-💛 I have my own IT [blog](https://www.heyvaldemar.com/), where I’ve built a [community](https://discord.gg/AJQGCCBcqf) of DevOps enthusiasts who share my love for all things Docker, containers, and IT technologies in general. And to make sure everyone can jump on this awesome DevOps train, I write super detailed guides (seriously, they’re foolproof!) that help even newbies deploy and manage complex IT solutions.
+- **Container exits immediately with `RCON_PASSWORD is still the .env.example placeholder`.** The entrypoint refuses the placeholder and anything shorter than 16 characters. Set a real value in `.env` and `up -d` again.
+- **The page loads but the client cannot connect.** `QUAKE3_SERVER_IP_OR_HOSTNAME` must be the address players reach the server at (public IP or DNS name), not `0.0.0.0` and not the Docker-internal address; the web client is told to connect there.
+- **Players outside your network cannot join.** Open **80/tcp** (web client) and **27960/tcp** (game traffic over WebSocket) in the firewall.
 
-🚀 My dream is to empower every single person in the DevOps community to squeeze every last drop of potential out of Docker and container tech.
+## Supply chain trust
 
-🐳 As a [Docker Captain](https://www.docker.com/captains/vladimir-mikhalev/), I’m stoked to share my knowledge, experiences, and a good dose of passion for the tech. My aim is to encourage learning, innovation, and growth, and to inspire the next generation of IT whizz-kids to push Docker and container tech to its limits.
+Most repositories in this fleet pin an upstream image. This one ships its own: the image is built from the `Dockerfile` here by the [Publish Docker Image](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/workflows/00-publish-docker-image.yml) workflow, pushed to Docker Hub tagged `latest` and with the commit it was built from, and pinned as `<commit-tag>@sha256:<digest>` in the compose `x-images` block. The publish workflow commits the new pin after every build, so `git pull` alone delivers the exact image CI built and booted. Earlier revisions deployed from a floating `latest`.
 
-Let’s do this together!
+Deployment Verification rebuilds the image from the checkout on every push and daily, scans the build with Trivy, and the daily `check-pin-freshness` job fails if the pin no longer matches the latest published build. GitHub Actions are pinned by commit SHA; Dependabot keeps those and the `ubuntu` base image fresh.
 
-## My 2D Portfolio
+To run your own build instead, set `QUAKE3_SERVER_IMAGE_TAG` in `.env` (for example `docker build -t my/quake3-server .` and `QUAKE3_SERVER_IMAGE_TAG=my/quake3-server`).
 
-🕹️ Click into [sre.gg](https://www.sre.gg/) — my virtual space is a 2D pixel-art portfolio inviting you to interact with elements that encapsulate the milestones of my DevOps career.
+## Production checklist
 
-## My Courses
+- [ ] **Generate `RCON_PASSWORD`** with `openssl rand -base64 24 | tr -d '/+=' | head -c 32`. Anyone with it can kick players, change maps and shut the server down.
+- [ ] **Set `QUAKE3_SERVER_IP_OR_HOSTNAME`** to the public address; put a DNS name in front if players should not learn the IP.
+- [ ] **Open 80/tcp and 27960/tcp** in the firewall; nothing else needs to be public. Put a TLS-terminating proxy in front of port 80 if the page should be served over HTTPS.
+- [ ] **Keep `server.cfg` in your own git repository**: it is the whole server state worth keeping.
+- [ ] **Rotate the RCON password** if you deployed before 2026-04-23: the pre-rotation value that was hardcoded in `server.cfg` remains in git history and is compromised. See [SECURITY.md](SECURITY.md).
 
-🎓 Dive into my [comprehensive IT courses](https://www.heyvaldemar.com/courses/) designed for enthusiasts and professionals alike. Whether you're looking to master Docker, conquer Kubernetes, or advance your DevOps skills, my courses provide a structured pathway to enhancing your technical prowess.
+## Unattended updates
 
-🔑 [Each course](https://www.udemy.com/user/heyvaldemar/) is built from the ground up with real-world scenarios in mind, ensuring that you gain practical knowledge and hands-on experience. From beginners to seasoned professionals, there's something here for everyone to elevate their IT skills.
+Releases are the update channel: a tag is cut only after CI has built the image, booted the stack, and passed the smoke tests. `update.sh` moves a deployment to the newest tag and nothing else:
 
-## My Services
+```bash
+./update.sh --dry-run   # show what would be applied
+./update.sh             # update within the current major and redeploy
+```
 
-💼 Take a look at my [service catalog](https://www.heyvaldemar.com/services/) and find out how we can make your technological life better. Whether it's increasing the efficiency of your IT infrastructure, advancing your career, or expanding your technological horizons — I'm here to help you achieve your goals. From DevOps transformations to building gaming computers — let's make your technology unparalleled!
+Put it on a timer for hands-off minor/patch updates:
 
-## Patreon Exclusives
+```bash
+# crontab -e
+17 5 * * *  /opt/quake3-server-docker-compose/update.sh >> /var/log/quake3-server-update.log 2>&1
+```
 
-🏆 Join my [Patreon](https://www.patreon.com/heyvaldemar) and dive deep into the world of Docker and DevOps with exclusive content tailored for IT enthusiasts and professionals. As your experienced guide, I offer a range of membership tiers designed to suit everyone from newbies to IT experts.
+The script refuses to cross a MAJOR template version on its own: majors are breaking by definition and their release notes exist to be read. After reading them, `./update.sh --allow-major` performs the jump. It also refuses to touch a checkout with local modifications: your customization belongs in `.env` and `server.cfg`, which updates never overwrite.
 
-## My Recommendations
+This is deliberately a host-side script and not a container in the stack: an in-stack updater needs the Docker socket (root on the host) and turns "someone pushed to a repo" into "someone deployed to your machine" with no operator in the loop. A cron job under your own user updates only to tagged, CI-verified states and leaves the trust boundary where it was.
 
-📕 Check out my collection of [essential DevOps books](https://kit.co/heyvaldemar/essential-devops-books)\
-🖥️ Check out my [studio streaming and recording kit](https://kit.co/heyvaldemar/my-studio-streaming-and-recording-kit)\
-📡 Check out my [streaming starter kit](https://kit.co/heyvaldemar/streaming-starter-kit)
+## Resource limits
 
-## Follow Me
+The service carries memory and CPU limits plus reservations as compose-level defaults, the same values CI boots the stack under. Override any of them in `.env` (the knobs and their defaults are listed in `.env.example`, e.g. `QUAKE3_SERVER_MEMORY_LIMIT=1g`) and the override survives every `git pull`. If the server is OOM-killed with many players and bots, `docker inspect <container> --format '{{.State.OOMKilled}}'` says so; raise `QUAKE3_SERVER_MEMORY_LIMIT` and recreate.
 
-🎬 [YouTube](https://www.youtube.com/channel/UCf85kQ0u1sYTTTyKVpxrlyQ?sub_confirmation=1)\
-🐦 [X / Twitter](https://twitter.com/heyvaldemar)\
-🎨 [Instagram](https://www.instagram.com/heyvaldemar/)\
-🐘 [Mastodon](https://mastodon.social/@heyvaldemar)\
-🧵 [Threads](https://www.threads.net/@heyvaldemar)\
-🎸 [Facebook](https://www.facebook.com/heyvaldemarFB/)\
-🧊 [Bluesky](https://bsky.app/profile/heyvaldemar.bsky.social)\
-🎥 [TikTok](https://www.tiktok.com/@heyvaldemar)\
-💻 [LinkedIn](https://www.linkedin.com/in/heyvaldemar/)\
-📣 [daily.dev Squad](https://app.daily.dev/squads/devopscompass)\
-🧩 [LeetCode](https://leetcode.com/u/heyvaldemar/)\
-🐈 [GitHub](https://github.com/heyvaldemar)
+## Backups
 
-## Community of IT Experts
+The server is stateless. `server.cfg` and `.env` next to the compose file are the whole configuration; the game assets live inside the image and are rebuilt from this repository. Keep those two files in your own git repository (without the password: `.env` is gitignored here for that reason) and a rebuild of the host is `git clone`, restore `.env`, `up -d`.
 
-👾 [Discord](https://discord.gg/AJQGCCBcqf)
+## Container hardening
 
-## Refill My Coffee Supplies
+The container runs with `security_opt: no-new-privileges:true`, so a process cannot gain privileges through setuid binaries even if it escapes its initial capability set. It keeps the default capability set on purpose: the entrypoint starts Apache as root to bind port 80 and the dedicated server alongside it, and CI boots the stack under exactly these settings on every push, so what ships is what was tested.
 
-💖 [PayPal](https://www.paypal.com/paypalme/heyvaldemarCOM)\
-🏆 [Patreon](https://www.patreon.com/heyvaldemar)\
-💎 [GitHub](https://github.com/sponsors/heyvaldemar)\
-🥤 [BuyMeaCoffee](https://www.buymeacoffee.com/heyvaldemar)\
-🍪 [Ko-fi](https://ko-fi.com/heyvaldemar)
+## Testing
 
-🌟 **Bitcoin (BTC):** bc1q2fq0k2lvdythdrj4ep20metjwnjuf7wccpckxc\
-🔹 **Ethereum (ETH):** 0x76C936F9366Fad39769CA5285b0Af1d975adacB8\
-🪙 **Binance Coin (BNB):** bnb1xnn6gg63lr2dgufngfr0lkq39kz8qltjt2v2g6\
-💠 **Litecoin (LTC):** LMGrhx8Jsx73h1pWY9FE8GB46nBytjvz8g
+The [Deployment Verification](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/workflows/deployment-verification.yml?query=branch%3Amain) workflow runs on every push, pull request, and every day at 06:00 UTC: ShellCheck, hadolint and actionlint; a build of the image from the checkout; a Trivy scan of that build; a deploy job that boots the stack with an ephemeral RCON password and requires the web client to answer 200 and the game port to listen; and, on the daily run, the pin freshness check against Docker Hub.
+
+---
+
+## About the maintainer
 
 <div align="center">
 
-### Show some 💜 by starring some of the [repositories](https://github.com/heyValdemar?tab=repositories)!
+**Maintained by [Vladimir Mikhalev](https://github.com/heyvaldemar)** — Docker Captain · IBM Champion · AWS Community Builder
 
-![octocat](https://user-images.githubusercontent.com/10498744/210113490-e2fad07f-4488-4da8-a656-b9abbdd8cb26.gif)
+[YouTube](https://www.youtube.com/channel/UCf85kQ0u1sYTTTyKVpxrlyQ?sub_confirmation=1) · [Blog](https://heyvaldemar.com) · [LinkedIn](https://www.linkedin.com/in/heyvaldemar/)
 
 </div>
-
-![footer](https://user-images.githubusercontent.com/10498744/210157572-1fca0242-8af2-46a6-bfa3-666ffd40ebde.svg)

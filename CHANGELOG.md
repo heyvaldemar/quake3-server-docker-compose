@@ -11,18 +11,42 @@ _(no unreleased changes yet)_
 
 ## [1.3.0] - 2026-09-03
 
+### Added
+
+- **The image is pinned by digest, as the compose default.** The
+  `x-images` block now carries `heyvaldemar/quake3-server:<commit>@sha256:<digest>`
+  and the publish workflow commits the new pin after every build, so
+  `git pull` delivers the exact image CI built and booted. Earlier
+  revisions pulled a floating `latest` (`.env.example` set it), which
+  meant a fresh install could get an image no run had tested.
+- **The publish workflow runs only when the image changes** (Dockerfile,
+  entrypoint, `server.cfg`, the vendored QuakeJS and assets), instead of
+  rebuilding and re-tagging `latest` on every documentation commit.
+- **Trivy scan** of the freshly built image in Deployment Verification,
+  with SARIF uploaded to the Security tab.
+- **Daily `check-pin-freshness` job**: fails when the pinned tag
+  re-resolves to a different digest or when the pin no longer matches
+  the latest published build.
+
+### Changed
+
+- README rewritten to the fleet layout: getting started, what success
+  looks like, first-deploy issues, supply chain trust, production
+  checklist, unattended updates, resource limits, backups, hardening,
+  testing.
+- `update.sh` and CI use the compose project name `quake3-server`, the
+  name the README has always used, instead of `quake3`.
+- SECURITY.md describes how this repository's own image is built,
+  pinned and scanned.
+
 ### Security
 
-- **Container hardening.** Every service runs with
-  `security_opt: no-new-privileges:true` (no privilege escalation via
-  setuid binaries even if a process escapes its initial capability
-  set). Infrastructure containers (the reverse proxy, databases,
-  caches, backups) drop every Linux capability and add back only what
-  their entrypoints need (bind :80/:443, chown a data directory, drop to
-  the service user). Application containers keep the default capability
-  set: upstream images assume it, and a wrong guess there is a boot loop
-  in production, not a hardening win. CI boots the stack under these
-  settings on every push.
+- **Container hardening.** The service runs with
+  `security_opt: no-new-privileges:true`: no privilege escalation via
+  setuid binaries even if a process escapes its initial capability set.
+  The container keeps the default capability set on purpose (the
+  entrypoint runs Apache and the dedicated server as root to bind
+  port 80). CI boots the stack under these settings on every push.
 
 ## [1.2.0] - 2026-09-02
 

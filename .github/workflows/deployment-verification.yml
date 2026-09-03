@@ -8,8 +8,9 @@ on:
     branches:
       - main
   schedule:
-    # Weekly rebuild to catch base-image and dependency drift.
-    - cron: "0 6 * * 1"
+    # Daily: rebuild to catch base-image and dependency drift, and check
+    # that the compose pin still points at the published image.
+    - cron: "0 6 * * *"
   workflow_dispatch:
 
 concurrency:
@@ -54,10 +55,11 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
+      security-events: write
 
     env:
       DOCKER_COMPOSE_FILE: quake3-server-docker-compose.yml
-      COMPOSE_PROJECT_NAME: quake3
+      COMPOSE_PROJECT_NAME: quake3-server
 
     steps:
       - name: Checkout repository
@@ -68,6 +70,21 @@ jobs:
         # the Dockerfile as-is so every push proves the image still
         # builds and boots before the publish workflow ships it.
         run: docker build -t heyvaldemar/quake3-server:ci .
+
+      - name: Trivy scan of the freshly built image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: heyvaldemar/quake3-server:ci
+          format: sarif
+          output: trivy-quake3-server.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+
+      - name: Upload Trivy SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        with:
+          sarif_file: trivy-quake3-server.sarif
+          category: trivy-quake3-server
 
       - name: Generate test .env with an ephemeral RCON password
         run: |
@@ -102,3 +119,37 @@ jobs:
       - name: Shutdown Docker Compose services
         if: always()
         run: docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" down
+
+  check-pin-freshness:
+    name: Check the compose pin against the published image
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Compare the pinned digest against what the pinned tag resolves to now
+        run: |
+          pin="$(grep -oE '\$\{QUAKE3_SERVER_IMAGE_TAG:-[^}]+\}' quake3-server-docker-compose.yml | head -1 | sed -E 's/^\$\{QUAKE3_SERVER_IMAGE_TAG:-//; s/\}$//')"
+          ref="${pin%%@*}"; pinned="${pin##*@}"
+          now="$(docker buildx imagetools inspect "$ref" --format '{{json .Manifest}}' | jq -r .digest)"
+          if [ "$now" != "$pinned" ]; then
+            echo "$ref now resolves to $now, the compose file pins $pinned" >&2
+            exit 1
+          fi
+          echo "QUAKE3_SERVER_IMAGE_TAG OK (${ref})"
+
+      - name: Compare the pin against the latest published build
+        run: |
+          pin="$(grep -oE '\$\{QUAKE3_SERVER_IMAGE_TAG:-[^}]+\}' quake3-server-docker-compose.yml | head -1 | sed -E 's/^\$\{QUAKE3_SERVER_IMAGE_TAG:-//; s/\}$//')"
+          pinned="${pin##*@}"
+          latest="$(docker buildx imagetools inspect heyvaldemar/quake3-server:latest --format '{{json .Manifest}}' | jq -r .digest)"
+          if [ "$latest" != "$pinned" ]; then
+            echo "heyvaldemar/quake3-server:latest is $latest but the compose file pins $pinned." >&2
+            echo "The publish workflow commits the new pin after every build; check its last run." >&2
+            exit 1
+          fi
+          echo "compose pin matches the latest published build"

@@ -1,6 +1,18 @@
+# Image pin lives HERE, as an interpolation default, so `git pull` (or
+# re-downloading this file) delivers the exact image this repository has
+# tested. The image is built from this repository's Dockerfile by the
+# "Publish Docker Image to Registry" workflow, tagged with the commit it
+# was built from, and pinned here by digest; that workflow commits the
+# new pin after every publish. Set QUAKE3_SERVER_IMAGE_TAG in .env to
+# run a different build (for example one you built yourself).
+# CI (the Trivy scan, check-pin-freshness, the deploy job) reads the pin
+# from this line: this block is the single source of truth.
+x-images:
+  quake3-server: &quake3-server-image ${QUAKE3_SERVER_IMAGE_TAG:-heyvaldemar/quake3-server:cb6ff0d0aea851667b87a6a40003d9bf5a253ad9@sha256:b3a6a8c5bbb7d8ea7c7a3bbb11e01e2680b641db280a9e6f6faa8c13a43870b6}
+
 services:
   quake3-server:
-    image: ${QUAKE3_SERVER_IMAGE_TAG}
+    image: *quake3-server-image
     # Hardening: no privilege escalation via setuid binaries
     security_opt:
       - no-new-privileges:true

@@ -1,33 +1,58 @@
 name: Publish Docker Image to Registry
 
+# Builds the server image from this repository and publishes it to Docker
+# Hub, tagged `latest` and with the commit it was built from. After the
+# push it pins the new build by digest in the compose file and commits
+# that pin, so `git pull` delivers exactly the image CI built. Runs only
+# when something that goes into the image changes.
+
 on:
   push:
     branches:
       - main
+    paths:
+      - Dockerfile
+      - entrypoint.sh
+      - server.cfg
+      - quakejs/**
+      - include/**
+      - .github/workflows/00-publish-docker-image.yml
+  workflow_dispatch:
+
+concurrency:
+  group: publish-docker-image
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
   build-and-publish:
     name: Build and Publish Docker Image
     runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
+        uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4.3.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and Push Image
-        uses: docker/build-push-action@v7
+        id: build
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
           file: Dockerfile
@@ -39,3 +64,21 @@ jobs:
           pull: true
           cache-from: type=registry,ref=heyvaldemar/quake3-server:cache
           cache-to: type=inline
+
+      - name: Pin the published build in the compose file
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          new="heyvaldemar/quake3-server:${GITHUB_SHA}@${DIGEST}"
+          sed -i -E "s|heyvaldemar/quake3-server:[0-9a-f]{40}@sha256:[0-9a-f]{64}|${new}|" quake3-server-docker-compose.yml
+          grep -q "$new" quake3-server-docker-compose.yml || { echo "pin pattern not found in the compose file" >&2; exit 1; }
+          if git diff --quiet; then
+            echo "compose file already pins $new"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore: pin the image built from ${GITHUB_SHA::7}" \
+            -m "Built by the publish workflow from this commit and pushed to Docker Hub as heyvaldemar/quake3-server:${GITHUB_SHA} (${DIGEST}). The compose default now points at that build."
+          git pull --rebase origin main
+          git push origin HEAD:main
