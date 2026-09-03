@@ -1,4 +1,4 @@
-# Quake 3 Server (QuakeJS) — Docker Compose
+# Quake 3 Server (QuakeJS) on Docker Compose
 
 [![Deployment Verification](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/workflows/deployment-verification.yml/badge.svg?branch=main)](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/workflows/deployment-verification.yml)
 [![Publish Docker Image](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/workflows/00-publish-docker-image.yml/badge.svg?branch=main)](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/workflows/00-publish-docker-image.yml)
@@ -108,7 +108,7 @@ The [Deployment Verification](https://github.com/heyvaldemar/quake3-server-docke
 
 <div align="center">
 
-**Maintained by [Vladimir Mikhalev](https://github.com/heyvaldemar)** — Docker Captain · IBM Champion · AWS Community Builder
+**Maintained by [Vladimir Mikhalev](https://github.com/heyvaldemar)** · Docker Captain · IBM Champion · AWS Community Builder
 
 [YouTube](https://www.youtube.com/channel/UCf85kQ0u1sYTTTyKVpxrlyQ?sub_confirmation=1) · [Blog](https://heyvaldemar.com) · [LinkedIn](https://www.linkedin.com/in/heyvaldemar/)
 

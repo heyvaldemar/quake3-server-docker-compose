@@ -65,7 +65,7 @@ _(no unreleased changes yet)_
 
 ### Added
 
-- **`update.sh`** — unattended updates to the newest tagged release,
+- **`update.sh`**: unattended updates to the newest tagged release,
   and nothing else: a tag is cut only after CI has booted the pinned
   images and passed the smoke tests, so "update to the latest tag" means
   "update to a combination a machine has already run". It refuses to
@@ -80,11 +80,11 @@ _(no unreleased changes yet)_
 - **Game assets now come from inside the image.** The public
   content.quakejs.com CDN is dead (http 301s to an https endpoint that
   answers 526), and the dedicated server downloaded its paks from there
-  on every start — so every fresh container failed with "Failed to
+  on every start, so every fresh container failed with "Failed to
   download and parse manifest". The assets were already vendored under
   `/var/www/html/assets`; `fs_cdn` now points at the container's own
   Apache.
-- **`+set dedicated 1` reached the engine for the first time** — the old
+- **`+set dedicated 1` reached the engine for the first time**: the old
   command line was missing the `+` on `set dedicated 1`.
 - **RCON substitution works with the compose bind mount**: `sed -i`
   replaces files by rename, which fails on a bind-mounted single file
@@ -106,13 +106,13 @@ _(no unreleased changes yet)_
   the game port to be reachable.
 
 ### Added (pre-1.0, unreleased)
-- `LICENSE` — canonical MIT license text at repo root.
-- `SECURITY.md` — vulnerability disclosure policy, supported versions, and a
+- `LICENSE`: canonical MIT license text at repo root.
+- `SECURITY.md`: vulnerability disclosure policy, supported versions, and a
   callout for the pre-PR-#14 RCON password rotation advisory.
-- `CHANGELOG.md` — this file, Keep-a-Changelog format.
-- `.hadolint.yaml` — Dockerfile lint configuration, matching the standard used
+- `CHANGELOG.md`: this file, Keep-a-Changelog format.
+- `.hadolint.yaml`: Dockerfile lint configuration, matching the standard used
   across the maintainer's other public repositories.
-- `.dockerignore` — keeps repo metadata (`.git`, `.github`, docs) out of the
+- `.dockerignore`: keeps repo metadata (`.git`, `.github`, docs) out of the
   Docker build context.
 
 ### Changed
@@ -120,7 +120,7 @@ _(no unreleased changes yet)_
   into a single PR each week; major bumps continue to open individual PRs.
 
 ### Removed
-- `.github/FUNDING.yml` — sponsor discovery moves to heyvaldemar.com.
+- `.github/FUNDING.yml`: sponsor discovery moves to heyvaldemar.com.
 
 ### Security
 - RCON password rotated out of `server.cfg` in PR #14 (merged 2026-04-23).
