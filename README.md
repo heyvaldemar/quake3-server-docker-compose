@@ -54,6 +54,8 @@ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1/
 
 Most repositories in this fleet pin an upstream image. This one ships its own: the image is built from the `Dockerfile` here by the [Publish Docker Image](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/workflows/00-publish-docker-image.yml) workflow, pushed to Docker Hub tagged `latest` and with the commit it was built from, and pinned as `<commit-tag>@sha256:<digest>` in the compose `x-images` block. The publish workflow commits the new pin after every build, so `git pull` alone delivers the exact image CI built and booted. Earlier revisions deployed from a floating `latest`.
 
+Two override levels exist per image. `<PREFIX>_IMAGE_VERSION` in `.env` swaps only the version of that image (Compose then pulls the tag, without a digest) and leaves every other pin as tested; `<PREFIX>_IMAGE_TAG` replaces the whole reference, digest included. The variable names are listed in `.env.example`. Nested defaults need Docker Compose v2.5 or newer (2022); v2.0 to v2.4 leave the inner `${...}` unexpanded and `docker compose up` fails with an invalid reference instead of deploying something unexpected.
+
 Deployment Verification rebuilds the image from the checkout on every push and daily, scans the build with Trivy, and the daily `check-pin-freshness` job fails if the pin no longer matches the latest published build. GitHub Actions are pinned by commit SHA; Dependabot keeps those and the `ubuntu` base image fresh.
 
 To run your own build instead, set `QUAKE3_SERVER_IMAGE_TAG` in `.env` (for example `docker build -t my/quake3-server .` and `QUAKE3_SERVER_IMAGE_TAG=my/quake3-server`).

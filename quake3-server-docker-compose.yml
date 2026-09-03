@@ -8,7 +8,7 @@
 # CI (the Trivy scan, check-pin-freshness, the deploy job) reads the pin
 # from this line: this block is the single source of truth.
 x-images:
-  quake3-server: &quake3-server-image ${QUAKE3_SERVER_IMAGE_TAG:-heyvaldemar/quake3-server:5afa1fb77f4cbc50596ddeeb33395c155033ecad@sha256:5c7d3d88cffd1528fdf2703e26f195608adccebe9cbdfbed4cdf8d69e72b2deb}
+  quake3-server: &quake3-server-image ${QUAKE3_SERVER_IMAGE_TAG:-heyvaldemar/quake3-server:${QUAKE3_SERVER_IMAGE_VERSION:-5afa1fb77f4cbc50596ddeeb33395c155033ecad@sha256:5c7d3d88cffd1528fdf2703e26f195608adccebe9cbdfbed4cdf8d69e72b2deb}}
 
 services:
   quake3-server:

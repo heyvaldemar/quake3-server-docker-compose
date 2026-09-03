@@ -133,7 +133,7 @@ jobs:
 
       - name: Compare the pinned digest against what the pinned tag resolves to now
         run: |
-          pin="$(grep -oE '\$\{QUAKE3_SERVER_IMAGE_TAG:-[^}]+\}' quake3-server-docker-compose.yml | head -1 | sed -E 's/^\$\{QUAKE3_SERVER_IMAGE_TAG:-//; s/\}$//')"
+          pin="$(grep -m1 -oE '\$\{QUAKE3_SERVER_IMAGE_TAG:-.*' quake3-server-docker-compose.yml | sed -E -e ':a' -e 's/\$\{[A-Z_]+:-([^{}]*)\}/\1/' -e 'ta')"
           ref="${pin%%@*}"; pinned="${pin##*@}"
           now="$(docker buildx imagetools inspect "$ref" --format '{{json .Manifest}}' | jq -r .digest)"
           if [ "$now" != "$pinned" ]; then
@@ -144,7 +144,7 @@ jobs:
 
       - name: Compare the pin against the latest published build
         run: |
-          pin="$(grep -oE '\$\{QUAKE3_SERVER_IMAGE_TAG:-[^}]+\}' quake3-server-docker-compose.yml | head -1 | sed -E 's/^\$\{QUAKE3_SERVER_IMAGE_TAG:-//; s/\}$//')"
+          pin="$(grep -m1 -oE '\$\{QUAKE3_SERVER_IMAGE_TAG:-.*' quake3-server-docker-compose.yml | sed -E -e ':a' -e 's/\$\{[A-Z_]+:-([^{}]*)\}/\1/' -e 'ta')"
           pinned="${pin##*@}"
           latest="$(docker buildx imagetools inspect heyvaldemar/quake3-server:latest --format '{{json .Manifest}}' | jq -r .digest)"
           if [ "$latest" != "$pinned" ]; then
