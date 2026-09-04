@@ -135,7 +135,18 @@ jobs:
         run: |
           pin="$(grep -m1 -oE '\$\{QUAKE3_SERVER_IMAGE_TAG:-.*' quake3-server-docker-compose.yml | sed -E -e ':a' -e 's/\$\{[A-Z0-9_]+:-([^{}]*)\}/\1/' -e 'ta')"
           ref="${pin%%@*}"; pinned="${pin##*@}"
-          now="$(docker buildx imagetools inspect "$ref" --format '{{json .Manifest}}' | jq -r .digest)"
+          # Three attempts: an unanswered registry lookup used to leave this empty,
+          # and the comparison below then reported it as drift.
+          now=""
+          for attempt in 1 2 3; do
+            now="$(docker buildx imagetools inspect "$ref" --format '{{json .Manifest}}' 2>/dev/null | jq -r '.digest // empty')"
+            [ -n "$now" ] && break
+            sleep $(( attempt * 5 ))
+          done
+          if [ -z "$now" ]; then
+            echo "::error::${ref} did not resolve after three attempts: the registry did not answer, or the tag is gone. The pin itself is unchanged."
+            exit 1
+          fi
           if [ "$now" != "$pinned" ]; then
             echo "$ref now resolves to $now, the compose file pins $pinned" >&2
             exit 1
@@ -146,7 +157,18 @@ jobs:
         run: |
           pin="$(grep -m1 -oE '\$\{QUAKE3_SERVER_IMAGE_TAG:-.*' quake3-server-docker-compose.yml | sed -E -e ':a' -e 's/\$\{[A-Z0-9_]+:-([^{}]*)\}/\1/' -e 'ta')"
           pinned="${pin##*@}"
-          latest="$(docker buildx imagetools inspect heyvaldemar/quake3-server:latest --format '{{json .Manifest}}' | jq -r .digest)"
+          # Three attempts: an unanswered registry lookup used to leave this empty,
+          # and the comparison below then reported it as drift.
+          latest=""
+          for attempt in 1 2 3; do
+            latest="$(docker buildx imagetools inspect heyvaldemar/quake3-server:latest --format '{{json .Manifest}}' 2>/dev/null | jq -r '.digest // empty')"
+            [ -n "$latest" ] && break
+            sleep $(( attempt * 5 ))
+          done
+          if [ -z "$latest" ]; then
+            echo "::error::heyvaldemar/quake3-server:latest did not resolve after three attempts: the registry did not answer, or the tag is gone. The pin itself is unchanged."
+            exit 1
+          fi
           if [ "$latest" != "$pinned" ]; then
             echo "heyvaldemar/quake3-server:latest is $latest but the compose file pins $pinned." >&2
             echo "The publish workflow commits the new pin after every build; check its last run." >&2
