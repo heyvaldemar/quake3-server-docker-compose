@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _(no unreleased changes yet)_
 
+## [1.5.0] - 2026-09-05
+
+### Added
+
+- **A health check that fails when the game is dead.** The container runs two
+  processes: node serves the game on 27960, and a separate apache2 serves the
+  browser client on `:80`. That makes the obvious check useless, and it was
+  measured rather than assumed. With node stopped from the host, a `GET` on
+  `:80` still returns 200, because apache2 is untouched; a bare TCP connect to
+  27960 also still succeeds, because the kernel accepts into the listen backlog
+  of a stopped process. Both would report a healthy container with a dead game.
+  QuakeJS speaks WebSocket, so the check completes a handshake and requires
+  `101 Switching Protocols`, which only node can answer. Verified in both
+  directions against a running stack: healthy while the game is up, unhealthy
+  within three intervals of node being stopped, healthy again when it resumes.
+
+### Changed
+
+- **The memory limit now says why it is what it is.** Given no limit this
+  server settles around 840 MB with bots playing, which makes the shipped
+  512 MB default look wrong. Measured, it is not: held to 512m the process runs
+  at 470 to 490 MB and is not OOM-killed, because the engine sizes its heap to
+  the cgroup it finds itself in. The note exists so nobody raises the limit on
+  the strength of an unconstrained reading, the way this was nearly changed.
+
 ## [1.4.0] - 2026-09-03
 
 ### Added
@@ -157,7 +182,8 @@ Earlier commits did not follow Keep-a-Changelog. Highlights:
 - **2026-04:** beginning of the supply-chain hardening track aligned with
   [heyvaldemar/aws-kubectl-docker](https://github.com/heyvaldemar/aws-kubectl-docker).
 
-[Unreleased]: https://github.com/heyvaldemar/quake3-server-docker-compose/commits/main
+[Unreleased]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.3.0...v1.4.0
 
 [Unreleased]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.4.0...HEAD
