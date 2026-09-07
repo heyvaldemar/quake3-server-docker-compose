@@ -9,15 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _(no unreleased changes yet)_
 
-## [1.5.0] - 2026-09-05
+## [1.5.1] - 2026-09-07
 
-### Added
+### Changed
 
-- **A health check that fails when the game is dead.** The container runs two
-  processes: node serves the game on 27960, and a separate apache2 serves the
-  browser client on `:80`. That makes the obvious check useless, and it was
-  measured rather than assumed. With node stopped from the host, a `GET` on
-  `:80` still returns 200, because apache2 is untouched; a bare TCP connect to
+- **`update.sh` names any new required variable before it moves.** An update can add a required variable; `docker compose up` used to stop on it after the checkout, with the tree already on the new tag. The script now lists the variables that appeared in `.env.example` since your version and refuses, before anything has moved, when a required one is not in your `.env`. Names only, never values.
+
+connect to
   27960 also still succeeds, because the kernel accepts into the listen backlog
   of a stopped process. Both would report a healthy container with a dead game.
   QuakeJS speaks WebSocket, so the check completes a handshake and requires
@@ -182,7 +180,8 @@ Earlier commits did not follow Keep-a-Changelog. Highlights:
 - **2026-04:** beginning of the supply-chain hardening track aligned with
   [heyvaldemar/aws-kubectl-docker](https://github.com/heyvaldemar/aws-kubectl-docker).
 
-[Unreleased]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.5.1...HEAD
+[1.5.1]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.3.0...v1.4.0
 
