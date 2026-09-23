@@ -19,7 +19,7 @@ Please do not open public GitHub issues for security reports.
 
 ## Supply chain trust
 
-Unlike most repositories in this fleet, this one ships its own image: `heyvaldemar/quake3-server` is built from the `Dockerfile` here by the "Publish Docker Image to Registry" workflow, tagged with the commit it was built from, and pinned by digest as the interpolation default in the compose file's `x-images` block. The publish workflow commits that pin after every build, so a plain `git pull` delivers the exact image CI built and booted. Deployment Verification rebuilds the image on every push and daily, scans it with Trivy, checks that the pin still matches the latest published build, and boots the stack. GitHub Actions are pinned by commit SHA.
+Unlike most repositories in this fleet, this one ships its own image: `heyvaldemar/quake3-server` is built from the `Dockerfile` here by the "Publish Docker Image to Registry" workflow, tagged with the commit it was built from, and pinned by digest as the interpolation default in the compose file's `x-images` block. The publish workflow commits that pin after every build, so a plain `git pull` delivers the exact image CI built and booted. Deployment Verification rebuilds the image on every push and daily, scans it with Trivy and boots the stack; Pin Freshness checks daily that the pin still matches the latest published build. GitHub Actions are pinned by commit SHA.
 
 ## Credentials
 
