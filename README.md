@@ -60,6 +60,23 @@ Deployment Verification rebuilds the image from the checkout on every push and d
 
 To run your own build instead, set `QUAKE3_SERVER_IMAGE_TAG` in `.env` (for example `docker build -t my/quake3-server .` and `QUAKE3_SERVER_IMAGE_TAG=my/quake3-server`).
 
+### Verify what you deploy
+
+Every release from v1.6.0 on carries three files made on GitHub's runner with a short-lived identity and no stored key: `quake3-server-docker-compose-<tag>.tar.gz`, a `git archive` of exactly the tree the tag points at; `quake3-server-docker-compose-<tag>.tar.gz.sigstore.json`, a keyless [Sigstore](https://www.sigstore.dev/) signature over it; and `quake3-server-docker-compose-<tag>.intoto.jsonl`, [SLSA](https://slsa.dev/) build provenance from the SLSA generator. To check them with nothing from this repository trusted:
+
+```bash
+cosign verify-blob quake3-server-docker-compose-<tag>.tar.gz \
+  --bundle quake3-server-docker-compose-<tag>.tar.gz.sigstore.json \
+  --certificate-identity-regexp '^https://github.com/heyvaldemar/quake3-server-docker-compose/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+
+slsa-verifier verify-artifact quake3-server-docker-compose-<tag>.tar.gz \
+  --provenance-path quake3-server-docker-compose-<tag>.intoto.jsonl \
+  --source-uri github.com/heyvaldemar/quake3-server-docker-compose
+```
+
+Add `--source-tag <tag>` for a release published after 24 September 2026, which is signed by the run that published it. The five releases before that date were signed by a run started by hand on `main`, so their provenance names the branch, not the tag; the archive is still the tag's tree, and the signature still belongs to this repository's workflow. The workflow that makes them is [`release-assets.yml`](.github/workflows/release-assets.yml).
+
 ## Production checklist
 
 - [ ] **Generate `RCON_PASSWORD`** with `openssl rand -base64 24 | tr -d '/+=' | head -c 32`. Anyone with it can kick players, change maps and shut the server down.
