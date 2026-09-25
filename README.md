@@ -2,6 +2,7 @@
 
 [![Deployment Verification](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/workflows/deployment-verification.yml/badge.svg?branch=main)](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/workflows/deployment-verification.yml)
 [![Publish Docker Image](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/workflows/00-publish-docker-image.yml/badge.svg?branch=main)](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/workflows/00-publish-docker-image.yml)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14887/badge)](https://www.bestpractices.dev/projects/14887)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 This repository runs a dedicated Quake 3 Arena server with the QuakeJS web client in one container: players open the server's address in a browser and play, no client install. The image is built from this repository (Dockerfile, vendored QuakeJS, game assets baked in) and published to Docker Hub as [`heyvaldemar/quake3-server`](https://hub.docker.com/r/heyvaldemar/quake3-server).
