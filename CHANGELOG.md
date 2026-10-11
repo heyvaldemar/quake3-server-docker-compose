@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **CI fails on an anonymous volume.** A `VOLUME` an image declares and no mount covers becomes an anonymous volume: never backed up, and replaced by an empty one on `down`/`up`. The deployment verification now inspects every container it starts and fails on one, unless `.github/anonymous-volumes` lists it with the reason. GLPI's data lived in exactly such a volume from 2026-08-31 to 2026-10-11.
+
 ### Changed
 
 - **The freshness check has its own workflow, Pin Freshness.** It ran inside Deployment Verification, whose badge is the one at the top of this README. Across the fleet, nine red runs in ten were a pin one version behind - which the fleet's triage moves within the day - and a reader cannot tell that from a stack that does not boot. The badge now says whether the stack boots. The job itself is unchanged.
