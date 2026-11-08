@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no unreleased changes yet)_
+
+## [1.6.1] - 2026-11-08
+
 ### Security
 
 - **`RCON_PASSWORD` is the password the server uses again.** From v1.3.0 through v1.6.0, `server.cfg` carried a literal RCON password where the `%RCON_PASSWORD%` placeholder belonged: the entrypoint rewrote the bind-mounted `server.cfg` in place at every start, so the password of one run ended up in a working copy and was committed with it on 2026-09-03 (5afa1fb). With the placeholder gone, `RCON_PASSWORD` from `.env` was silently ignored, and every server on those releases, and the image built from them, answered rcon to the password published in this repository. The placeholder is back; the compose file mounts `server.cfg` read-only as a template, and the entrypoint renders it into the config the server reads inside the container (mode 600), so the checkout's file never changes; a template without the placeholder gets a loud warning at start. CI now checks that the server's config carries `RCON_PASSWORD` and that the checkout's `server.cfg` still carries the placeholder after a start. **Upgrade if you run any of those releases.**
@@ -202,7 +206,8 @@ Earlier commits did not follow Keep-a-Changelog. Highlights:
 - **2026-04:** beginning of the supply-chain hardening track aligned with
   [heyvaldemar/aws-kubectl-docker](https://github.com/heyvaldemar/aws-kubectl-docker).
 
-[Unreleased]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.6.1...HEAD
+[1.6.1]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.4.0...v1.5.0
