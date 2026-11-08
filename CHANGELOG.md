@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no unreleased changes yet)_
+### Fixed
+
+- **Players can join again; in every release up to v1.6.1 nobody could.** Dependabot moved the `ws` library in `quakejs/package.json` from 0.4 to 8 before v1.0.0, and ws 8 passes a boolean `isBinary` to its message event where ws 0.4 passed a `flags` object. The engine's socket layer (`include/ioq3ded/ioq3ded.fixed.js`) tested `flags.binary`, which is undefined on a boolean, and dropped every packet a client sent as a text frame: connection requests included. The bots played on and the log looked busy. Measured on the image v1.6.1 shipped: Quake 3's `getstatus`, sent through the game's WebSocket, gets no answer; with the one line corrected, `statusResponse`. Text frames are still dropped.
+- **The health check asks the game, not the WebSocket proxy.** It accepted the 101 of a WebSocket handshake, which the ws library answers before any game code runs, so it called the deaf server above healthy for every release. `/healthcheck.js`, built into the image and named by the compose file, sends `getstatus` through the players' WebSocket and is healthy only on a `statusResponse`, which only a running game loop writes. It never reads the log: in QuakeJS the intermission after the fraglimit ends only when a human is ready, bots never are, and an empty server can stand silent on the scoreboard for hours. CI now requires the health check to pass on that scoreboard (fraglimit 1 with the shipped bots, then 90 seconds with no log line), and runs it against the image v1.6.1 shipped, where the old check passes and this one must fail.
 
 ## [1.6.1] - 2026-11-08
 

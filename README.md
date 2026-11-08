@@ -27,6 +27,10 @@ docker compose -f quake3-server-docker-compose.yml -p quake3-server up -d
 
 Open `http://<your-server>/` in a browser to play. Native Quake 3 clients are not supported: QuakeJS speaks WebSocket on port 27960, not the original UDP protocol.
 
+**Up to v1.6.1 nobody could join.** Dependabot moved the `ws` library from 0.4 to 8 before the first release, and ws 8 changed the arguments of its message event: the engine's socket layer read every packet a client sent as text and dropped it. The bots played on, the log looked busy, and the health check, which accepted a WebSocket handshake, said healthy, because the ws library answers the handshake before any game code runs. From v1.6.2 the engine reads binary packets again, and the health check asks the game itself: it sends Quake 3's `getstatus` through the same WebSocket players use and is healthy only on a `statusResponse`. CI shows the difference on the image v1.6.1 shipped: the old check passes, the new one fails.
+
+**An empty server can stand on the scoreboard for hours, and that is fine.** In QuakeJS (retail 1.32 game code) the intermission after the fraglimit ends only when a human is ready, and bots never are, so a server with only bots stays on the scoreboard and its log goes quiet. Nothing here judges health by the log; CI holds the server on that silent scoreboard and requires the health check to stay green.
+
 `server.cfg` next to the compose file is the game configuration (hostname, map rotation, bots, limits). It is mounted read-only into the container as a template; at every start the entrypoint renders it, with `RCON_PASSWORD` in place of the `%RCON_PASSWORD%` placeholder, into the config the server reads inside the container, so this file never carries the password. Keep the placeholder line: without it the entrypoint warns that `RCON_PASSWORD` is not applied. Apply a change with:
 
 ```bash
@@ -121,7 +125,7 @@ The container runs with `security_opt: no-new-privileges:true`, so a process can
 
 ## Testing
 
-The [Deployment Verification](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/workflows/deployment-verification.yml?query=branch%3Amain) workflow runs on every push, pull request, and every day at 06:00 UTC: ShellCheck, hadolint and actionlint; a build of the image from the checkout; a Trivy scan of that build; a deploy job that boots the stack with an ephemeral RCON password and requires the web client to answer 200 and the game port to listen; and, on the daily run, the pin freshness check against Docker Hub.
+The [Deployment Verification](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/workflows/deployment-verification.yml?query=branch%3Amain) workflow runs on every push, pull request, and every day at 06:00 UTC: ShellCheck, hadolint and actionlint; a build of the image from the checkout; a Trivy scan of that build; a deploy job that boots the stack with an ephemeral RCON password and requires the web client to answer 200, the game port to listen, and the game to answer `getstatus` through its WebSocket, also on the scoreboard after a fraglimit of 1, with the log silent for 90 seconds; a plant that runs the new health check against the image v1.6.1 shipped, which it must call unhealthy while the old check calls it healthy; and, on the daily run, the pin freshness check against Docker Hub.
 
 ---
 

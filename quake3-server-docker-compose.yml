@@ -17,18 +17,25 @@ services:
     security_opt:
       - no-new-privileges:true
     # This container runs TWO processes: node serves the game on 27960, and a
-    # separate apache2 serves the browser client on :80. That matters, because
-    # the obvious check is a false green. Measured, with node stopped from the
-    # host: a GET on :80 still returns 200, because apache2 is untouched, and a
-    # bare TCP connect to 27960 still succeeds, because the kernel accepts into
-    # the listen backlog of a stopped process. Both report a healthy container
-    # with a dead game.
+    # separate apache2 serves the browser client on :80. The obvious checks are
+    # false greens. A GET on :80 returns 200 with the game dead, because apache2
+    # is untouched; a bare TCP connect to 27960 succeeds into the listen backlog
+    # of a stopped process. And a WebSocket handshake, the check up to v1.6.1,
+    # is answered by the ws library before any game code runs: every release up
+    # to v1.6.1 answered 101 while the server dropped every packet a client
+    # sent, so nobody could join and this said healthy.
     #
-    # QuakeJS speaks WebSocket, so the check completes a handshake and requires
-    # 101 Switching Protocols - which only node can answer. Verified in both
-    # directions: exit 0 while the game is up, exit 1 with node stopped.
+    # So the check asks the game. /healthcheck.js (include/healthcheck.js, built
+    # into the image) sends Quake 3's out-of-band getstatus through the same
+    # WebSocket players use and is healthy only on a statusResponse, which only
+    # a running game loop writes. Not the log: an empty server can stand on the
+    # scoreboard after the fraglimit for hours and write nothing, because the
+    # intermission waits for a human to be ready and bots never are. CI holds
+    # the server there with a silent log and requires this to stay green, and
+    # runs it against the image every earlier release shipped, which it calls
+    # unhealthy.
     healthcheck:
-      test: ["CMD", "node", "-e", "const h=require('http').request({host:'127.0.0.1',port:27960,headers:{Connection:'Upgrade',Upgrade:'websocket','Sec-WebSocket-Version':'13','Sec-WebSocket-Key':'AAAAAAAAAAAAAAAAAAAAAA=='}});h.setTimeout(5000,()=>process.exit(1));h.on('upgrade',()=>process.exit(0));h.on('response',r=>process.exit(r.statusCode===101?0:1));h.on('error',()=>process.exit(1));h.end()"]
+      test: ["CMD", "node", "/healthcheck.js"]
       interval: 30s
       timeout: 10s
       retries: 3

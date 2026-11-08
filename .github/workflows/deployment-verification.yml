@@ -209,6 +209,66 @@ jobs:
           [ "$host" = 0 ] && [ "$ctr" = 0 ] || { echo "::error::RCON_PASSWORD is on a command line"; exit 1; }
           echo "the server's config carries RCON_PASSWORD; the checkout's server.cfg still carries the placeholder"
 
+      - name: The game answers getstatus through the players' WebSocket
+        # Healthy means the game loop answered Quake 3's out-of-band getstatus
+        # with a statusResponse, sent through the WebSocket players use; a
+        # handshake alone is not enough (see include/healthcheck.js).
+        run: |
+          cid="$(docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" ps -q quake3-server)"
+          s=none
+          for _ in $(seq 1 30); do
+            s="$(docker inspect "$cid" --format '{{.State.Health.Status}}')"
+            [ "$s" = healthy ] && break
+            sleep 10
+          done
+          echo "docker health: $s"
+          [ "$s" = healthy ] || { echo "::error::never healthy"; docker inspect "$cid" --format '{{json .State.Health.Log}}' | tail -c 600; exit 1; }
+          docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec -T quake3-server node /healthcheck.js
+
+      - name: On the scoreboard too - after the fraglimit, with the log silent, the game still answers
+        # In QuakeJS (retail 1.32 game code) the intermission after the
+        # fraglimit ends only when a human is ready, and bots never are: an
+        # empty server stands on the scoreboard and its log goes quiet, while
+        # it is perfectly well. A check that read the log would call it dead.
+        # Fraglimit 1 with the shipped bots, wait for "Exit: Fraglimit hit",
+        # require 90 seconds with no new log line, then the health check.
+        run: |
+          sed -E -e 's/^seta fraglimit .*/seta fraglimit 1/' -e 's/^seta timelimit .*/seta timelimit 0/' server.cfg > .ci-intermission.cfg
+          printf '%s\n' 'services:' '  quake3-server:' '    volumes: !override' \
+            '      - ./.ci-intermission.cfg:/quakejs/base/baseq3/server.cfg.template:ro' > .ci-intermission.yml
+          C="docker compose -f $DOCKER_COMPOSE_FILE -f .ci-intermission.yml -p $COMPOSE_PROJECT_NAME"
+          $C up -d --force-recreate
+          cid="$($C ps -q quake3-server)"
+          for _ in $(seq 1 60); do
+            docker logs "$cid" 2>&1 | grep -q 'Exit: Fraglimit hit' && break
+            sleep 10
+          done
+          docker logs "$cid" 2>&1 | grep -m1 'Exit: Fraglimit hit' || { echo "::error::the fraglimit was never hit"; docker logs --tail 40 "$cid"; exit 1; }
+          n0="$(docker logs "$cid" 2>&1 | wc -l)"; sleep 90; n1="$(docker logs "$cid" 2>&1 | wc -l)"
+          echo "log lines: $n0, then $n1 after 90 seconds on the scoreboard"
+          [ "$n1" = "$n0" ] || { echo "::error::the log was not silent, so this did not test the silent scoreboard"; docker logs --since 90s "$cid" 2>&1 | tail -20; exit 1; }
+          $C exec -T quake3-server node /healthcheck.js
+          s="$(docker inspect "$cid" --format '{{.State.Health.Status}}')"
+          echo "docker health on the silent scoreboard: $s"
+          [ "$s" = healthy ] || { echo "::error::unhealthy on the scoreboard"; exit 1; }
+
+      - name: Plant - a handshake is not a game - the image v1.6.1 shipped is unhealthy
+        # Every release up to v1.6.1 answered the WebSocket handshake while the
+        # engine dropped every packet a client sent (ws 8's message event). The
+        # check up to v1.6.1 called it healthy; this one must not.
+        run: |
+          prev=heyvaldemar/quake3-server:860318374ed9083547e2149463891cd2b9a836d9@sha256:1cd966150675c5c013af7e84d5ae8628f33684ba8fd11f84304282a84115c3a1
+          docker run -d --name q3-v161 -e RCON_PASSWORD="$(openssl rand -hex 16)" -e SERVER=127.0.0.1 \
+            -v "$PWD/include/healthcheck.js:/new-healthcheck.js:ro" "$prev" >/dev/null
+          old="const h=require('http').request({host:'127.0.0.1',port:27960,headers:{Connection:'Upgrade',Upgrade:'websocket','Sec-WebSocket-Version':'13','Sec-WebSocket-Key':'AAAAAAAAAAAAAAAAAAAAAA=='}});h.setTimeout(5000,()=>process.exit(1));h.on('upgrade',()=>process.exit(0));h.on('response',r=>process.exit(r.statusCode===101?0:1));h.on('error',()=>process.exit(1));h.end()"
+          for _ in $(seq 1 30); do docker exec q3-v161 node -e "$old" && break; sleep 5; done
+          sleep 30
+          o=0; docker exec q3-v161 node -e "$old" || o=$?
+          n=0; docker exec q3-v161 node /new-healthcheck.js || n=$?
+          docker rm -f q3-v161 >/dev/null
+          echo "v1.6.1's image: the old check exits $o, the new one exits $n"
+          [ "$o" = 0 ] && [ "$n" = 1 ] || { echo "::error::expected the old check to pass (0) and the new to fail (1)"; exit 1; }
+
       - name: Show container logs on failure
         if: failure()
         run: docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" logs

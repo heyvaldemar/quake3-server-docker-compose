@@ -10035,7 +10035,10 @@ function copyTempDouble(ptr) {
           if (ENVIRONMENT_IS_NODE) {
             peer.socket.on('open', handleOpen);
             peer.socket.on('message', function(data, flags) {
-              if (!flags.binary) {
+              // ws 8 passes isBinary, a boolean, where ws 0.4 passed a flags
+              // object; `!flags.binary` was then true for every message, and
+              // every packet a client sent was dropped. Text frames still are.
+              if (flags === false || (flags && flags.binary === false)) {
                 return;
               }
               handleMessage((new Uint8Array(data)).buffer);  // copy from node Buffer -> ArrayBuffer

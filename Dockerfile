@@ -39,6 +39,11 @@ COPY server.cfg /quakejs/base/baseq3/server.cfg
 COPY server.cfg /quakejs/base/cpma/server.cfg
 COPY ./include/ioq3ded/ioq3ded.fixed.js /quakejs/build/ioq3ded.js
 
+# Healthy only when the game answers Quake 3's getstatus over the players'
+# WebSocket, not when the proxy completes a handshake (see the script).
+COPY ./include/healthcheck.js /healthcheck.js
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 CMD ["node", "/healthcheck.js"]
+
 # Set up Apache to serve QuakeJS
 RUN rm /var/www/html/index.html && cp /quakejs/html/* /var/www/html/
 COPY ./include/assets/ /var/www/html/assets

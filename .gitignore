@@ -287,3 +287,7 @@ xcuserdata/
 # Environment file for docker-compose — may contain secrets (RCON_PASSWORD).
 # Users should copy .env.example to .env locally and fill in values.
 .env
+
+# Files the CI scoreboard test writes beside the compose file.
+.ci-intermission.cfg
+.ci-intermission.yml
