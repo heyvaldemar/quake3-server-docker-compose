@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no unreleased changes yet)_
+
+## [1.6.3] - 2026-11-08
+
 ### Security
 
 - **A password this repository published is refused at start.** Two RCON passwords are in this repository's history for anyone to read: the one hardcoded in `server.cfg` until 2026-04-23, and the one committed on 2026-09-03 and shipped in v1.3.0 through v1.6.0. Since v1.6.2 lets client packets reach the server, a `server.cfg` kept from those releases, or an `RCON_PASSWORD` copied from one, would hand rcon to anyone. The entrypoint now hashes every `rconpassword` the rendered configs set and refuses to start on either value, with an error that says how to fix it. Only their SHA-256 is in the image, and the value is never printed. CI plants v1.6.0's `server.cfg`, and the same value as `RCON_PASSWORD`, requires the refusal with the value in no log line, and requires rcon to answer the password from `.env` and refuse a wrong one.
@@ -21,7 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Update the repository together with the image:** `./update.sh` (or `git pull`), then `docker compose up -d`. A compose file from v1.0.0 to v1.6.0 cannot start an image from v1.6.1 on: until this release it restarted forever on "Device or resource busy", now it stops and says why. That is the safe direction, since nothing runs on a config the image cannot render, but the server is down until the repository is updated.
 - **If `.env` sets `QUAKE3_SERVER_IMAGE_TAG=heyvaldemar/quake3-server:latest`**, remove that line. v1.0.0's `.env.example` set it uncommented, and with it every pull moves the image while the compose file stays where it was; since `latest` became the v1.6.1 build on 2026-11-08, such a host stops at start as above. Without the line, the compose file's pin applies: the image this release was tested with.
 - **If the server refuses to start with "an rconpassword this repository once published"**, put `seta rconpassword "%RCON_PASSWORD%"` back in `server.cfg` and set a new `RCON_PASSWORD` in `.env`.
-
 ## [1.6.2] - 2026-11-08
 
 ### Fixed
@@ -225,7 +228,8 @@ Earlier commits did not follow Keep-a-Changelog. Highlights:
 - **2026-04:** beginning of the supply-chain hardening track aligned with
   [heyvaldemar/aws-kubectl-docker](https://github.com/heyvaldemar/aws-kubectl-docker).
 
-[Unreleased]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.6.2...HEAD
+[Unreleased]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.6.3...HEAD
+[1.6.3]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.6.2...v1.6.3
 [1.6.2]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.6.1...v1.6.2
 [1.6.1]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.5.1...v1.6.0
