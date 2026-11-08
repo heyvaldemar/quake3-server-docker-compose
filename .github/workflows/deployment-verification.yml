@@ -183,6 +183,32 @@ jobs:
           docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" logs | tail -20
           (echo > /dev/udp/127.0.0.1/27960) && echo "UDP 27960 reachable"
 
+      - name: RCON_PASSWORD is the one the server uses, and on no command line
+        # From v1.3.0 to v1.6.0 the tracked server.cfg carried a literal
+        # password where the placeholder belonged, so RCON_PASSWORD was ignored
+        # and every deployment ran with the one in git; nothing here noticed.
+        # Now: the config the server reads must carry RCON_PASSWORD, the
+        # checkout's server.cfg must still carry the placeholder after a start,
+        # and no command line on the runner or in the container may hold the
+        # value. Compared through files, so the password is never printed.
+        run: |
+          pw="$(mktemp)"; expect="$(mktemp)"; chmod 600 "$pw" "$expect"
+          sed -n 's/^RCON_PASSWORD=//p' .env > "$pw"
+          [ -s "$pw" ] || { echo "::error::no RCON_PASSWORD in .env"; exit 1; }
+          printf 'seta rconpassword "%s"\n' "$(cat "$pw")" > "$expect"
+          docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec -T quake3-server cat /quakejs/base/baseq3/server.cfg \
+            | grep -qxF -f "$expect" || { echo "::error::the server's config does not carry RCON_PASSWORD"; exit 1; }
+          git diff --quiet -- server.cfg || { echo "::error::the checkout's server.cfg was rewritten by the container"; exit 1; }
+          grep -q '%RCON_PASSWORD%' server.cfg || { echo "::error::server.cfg has lost its placeholder"; exit 1; }
+          # shellcheck disable=SC2009  # every command line on the runner, not one process
+          host=$(ps -eo args= | grep -cF -f "$pw" || true)
+          # shellcheck disable=SC2016  # expanded by the container's shell
+          ctr=$(docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec -T quake3-server sh -c 'for f in /proc/[0-9]*/cmdline; do tr "\000" " " < "$f" 2>/dev/null; echo; done' | grep -cF -f "$pw" || true)
+          rm -f "$pw" "$expect"
+          echo "command lines carrying RCON_PASSWORD: $host on the runner, $ctr in the container"
+          [ "$host" = 0 ] && [ "$ctr" = 0 ] || { echo "::error::RCON_PASSWORD is on a command line"; exit 1; }
+          echo "the server's config carries RCON_PASSWORD; the checkout's server.cfg still carries the placeholder"
+
       - name: Show container logs on failure
         if: failure()
         run: docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" logs

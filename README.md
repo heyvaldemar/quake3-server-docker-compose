@@ -27,7 +27,7 @@ docker compose -f quake3-server-docker-compose.yml -p quake3-server up -d
 
 Open `http://<your-server>/` in a browser to play. Native Quake 3 clients are not supported: QuakeJS speaks WebSocket on port 27960, not the original UDP protocol.
 
-`server.cfg` next to the compose file is the game configuration (hostname, map rotation, bots, limits). It is bind-mounted into the container; the entrypoint injects `RCON_PASSWORD` into it at start, so the file itself never carries the password. Apply a change with:
+`server.cfg` next to the compose file is the game configuration (hostname, map rotation, bots, limits). It is mounted read-only into the container as a template; at every start the entrypoint renders it, with `RCON_PASSWORD` in place of the `%RCON_PASSWORD%` placeholder, into the config the server reads inside the container, so this file never carries the password. Keep the placeholder line: without it the entrypoint warns that `RCON_PASSWORD` is not applied. Apply a change with:
 
 ```bash
 docker compose -f quake3-server-docker-compose.yml -p quake3-server restart
@@ -85,6 +85,7 @@ Add `--source-tag <tag>` for a release published after 24 September 2026, which 
 - [ ] **Open 80/tcp and 27960/tcp** in the firewall; nothing else needs to be public. Put a TLS-terminating proxy in front of port 80 if the page should be served over HTTPS.
 - [ ] **Keep `server.cfg` in your own git repository**: it is the whole server state worth keeping.
 - [ ] **Rotate the RCON password** if you deployed before 2026-04-23: the pre-rotation value that was hardcoded in `server.cfg` remains in git history and is compromised. See [SECURITY.md](SECURITY.md).
+- [ ] **Upgrade if you run v1.3.0 to v1.6.0.** In those releases `server.cfg` carried a literal RCON password where the placeholder belonged, so `RCON_PASSWORD` from `.env` was ignored and the server answered rcon to the password published in this repository. From the release after them, the server uses yours again. See [SECURITY.md](SECURITY.md).
 
 ## Unattended updates
 

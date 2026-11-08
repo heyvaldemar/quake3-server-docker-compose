@@ -2,8 +2,10 @@
 #
 # Configure and start the QuakeJS server and client.
 #
-# - Substitutes the %RCON_PASSWORD% placeholder in every server.cfg that was
-#   copied/mounted into the container with the value of $RCON_PASSWORD.
+# - Renders RCON_PASSWORD into the %RCON_PASSWORD% placeholder of each
+#   server.cfg, inside the container: baseq3 from the template the compose
+#   file mounts read-only (this repository's server.cfg), cpma from the copy
+#   built into the image.
 # - Points the QuakeJS web client at the current server's hostname.
 # - Starts Apache (serves the web client on :80) and node ioq3ded
 #   (the dedicated Quake 3 server on :27960) under the entrypoint PID.
@@ -32,22 +34,35 @@ if [ "${#RCON_PASSWORD}" -lt 16 ]; then
   exit 1
 fi
 
-# Inject the RCON password into every server.cfg the image ships (baseq3,
-# cpma). If the host volume-mounts its own server.cfg via docker-compose,
-# that file is rewritten here too so compose users never have to edit the
-# config.
-# `cat > file` instead of `sed -i`: sed -i replaces the file by rename,
-# which fails with "Device or resource busy" on a bind-mounted single
-# file (the docker-compose setup mounts server.cfg exactly like that),
-# and under `set -e` that killed the container in a restart loop.
+# Render the RCON password into each server.cfg, inside the container.
+#
+# NEVER BACK INTO A MOUNTED FILE. This used to rewrite server.cfg in place, and
+# the compose file mounted this repository's server.cfg there: every start
+# wrote the password into the checkout's tracked file, and one was committed on
+# 2026-09-03. The placeholder was gone from then on, RCON_PASSWORD was ignored,
+# and every deployment ran with the password in git. baseq3 now renders from
+# server.cfg.template (the repository's file, mounted read-only) when it is
+# there, and cpma, like a container started without compose, from the copy
+# built into the image, kept as .template on the first start.
+#
+# THE PASSWORD IS READ FROM THE ENVIRONMENT, NOT PASSED AS AN ARGUMENT.
+# `sed "s|%RCON_PASSWORD%|<password>|g"` put it in sed's arguments, which every
+# user on the host reads with ps. awk takes it from ENVIRON and splices it in
+# by position, so nothing in the value (|, &, \) is read as syntax either.
+umask 077
 for cfg in /quakejs/base/baseq3/server.cfg /quakejs/base/cpma/server.cfg; do
-  if [ -f "$cfg" ]; then
-    tmp=$(mktemp)
-    sed "s|%RCON_PASSWORD%|${RCON_PASSWORD}|g" "$cfg" > "$tmp"
-    cat "$tmp" > "$cfg"
-    rm -f "$tmp"
+  [ -f "$cfg.template" ] || { [ -f "$cfg" ] && cp "$cfg" "$cfg.template"; } || continue
+  if ! grep -q '%RCON_PASSWORD%' "$cfg.template"; then
+    echo "WARNING: $cfg.template has no %RCON_PASSWORD% placeholder, so RCON_PASSWORD is NOT applied:" >&2
+    echo "         rcon answers to whatever rconpassword that file sets. Put the placeholder back:" >&2
+    echo "         seta rconpassword \"%RCON_PASSWORD%\"" >&2
   fi
+  rm -f "$cfg"   # created anew, so the umask above makes it 600, not the image's 644
+  awk '{ out = ""; s = $0
+         while ((i = index(s, "%RCON_PASSWORD%")) > 0) { out = out substr(s, 1, i - 1) ENVIRON["RCON_PASSWORD"]; s = substr(s, i + 15) }
+         print out s }' "$cfg.template" > "$cfg"
 done
+umask 022
 
 # Update the QuakeJS web client to use the current server's hostname so
 # browser-based clients connect to the same machine that served the page.

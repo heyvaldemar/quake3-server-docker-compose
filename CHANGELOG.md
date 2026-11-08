@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **`RCON_PASSWORD` is the password the server uses again.** From v1.3.0 through v1.6.0, `server.cfg` carried a literal RCON password where the `%RCON_PASSWORD%` placeholder belonged: the entrypoint rewrote the bind-mounted `server.cfg` in place at every start, so the password of one run ended up in a working copy and was committed with it on 2026-09-03 (5afa1fb). With the placeholder gone, `RCON_PASSWORD` from `.env` was silently ignored, and every server on those releases, and the image built from them, answered rcon to the password published in this repository. The placeholder is back; the compose file mounts `server.cfg` read-only as a template, and the entrypoint renders it into the config the server reads inside the container (mode 600), so the checkout's file never changes; a template without the placeholder gets a loud warning at start. CI now checks that the server's config carries `RCON_PASSWORD` and that the checkout's `server.cfg` still carries the placeholder after a start. **Upgrade if you run any of those releases.**
+- **The RCON password is no longer on a command line.** The entrypoint substituted it with `sed "s|%RCON_PASSWORD%|<password>|g"`, putting it in `sed`'s arguments, which every user on the host reads with `ps`. `awk` now takes it from its environment and splices it in by position, so `|`, `&` and `\` in a password are no longer read as syntax either. CI reads every command line on the runner and in the container and requires the password on none.
+
 ### Added
 
 - **CI fails on an anonymous volume.** A `VOLUME` an image declares and no mount covers becomes an anonymous volume: never backed up, and replaced by an empty one on `down`/`up`. The deployment verification now inspects every container it starts and fails on one, unless `.github/anonymous-volumes` lists it with the reason. GLPI's data lived in exactly such a volume from 2026-08-31 to 2026-10-11.

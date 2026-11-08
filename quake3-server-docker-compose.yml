@@ -52,7 +52,13 @@ services:
           memory: ${QUAKE3_SERVER_MEMORY_RESERVATION:-64m}
           cpus: "${QUAKE3_SERVER_CPU_RESERVATION:-0.25}"
     volumes:
-      - ./server.cfg:/quakejs/base/baseq3/server.cfg
+      # READ-ONLY, AND BESIDE THE FILE THE SERVER READS, NOT ON IT. Mounted onto
+      # server.cfg itself, the entrypoint wrote the password into this
+      # repository's tracked file at every start, and one such file was
+      # committed on 2026-09-03: from v1.3.0 the placeholder was gone, the
+      # password in .env was ignored, and every deployment ran with the one in
+      # git. The entrypoint renders this template into the container instead.
+      - ./server.cfg:/quakejs/base/baseq3/server.cfg.template:ro
     environment:
       # THE GAME GETS THE HOUSEHOLD CLOCK TOO, not only whatever sidecar
       # sits beside it. Every timestamp this server writes — bans, joins,
