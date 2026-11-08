@@ -52,6 +52,8 @@ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1/
 ### Common first-deploy issues
 
 - **Container exits immediately with `RCON_PASSWORD is still the .env.example placeholder`.** The entrypoint refuses the placeholder and anything shorter than 16 characters. Set a real value in `.env` and `up -d` again.
+- **Container exits with `sets an rconpassword this repository once published`.** Your `server.cfg`, or `RCON_PASSWORD`, carries one of the two passwords that are in this repository's history, which anyone can read. Put `seta rconpassword "%RCON_PASSWORD%"` back in `server.cfg`, set a new `RCON_PASSWORD` in `.env`, and `up -d` again.
+- **Container exits with `is mounted from the host, so this compose file is older than v1.6.1`.** The image was updated without the repository. Run `./update.sh` (or `git pull`), then `docker compose up -d`; if `.env` sets `QUAKE3_SERVER_IMAGE_TAG=heyvaldemar/quake3-server:latest`, remove that line so the compose file's pin applies.
 - **The page loads but the client cannot connect.** `QUAKE3_SERVER_IP_OR_HOSTNAME` must be the address players reach the server at (public IP or DNS name), not `0.0.0.0` and not the Docker-internal address; the web client is told to connect there.
 - **Players outside your network cannot join.** Open 80/tcp (web client) and 27960/tcp (game traffic over WebSocket) in the firewall.
 
@@ -89,7 +91,7 @@ Add `--source-tag <tag>` for a release published after 24 September 2026, which 
 - [ ] **Open 80/tcp and 27960/tcp** in the firewall; nothing else needs to be public. Put a TLS-terminating proxy in front of port 80 if the page should be served over HTTPS.
 - [ ] **Keep `server.cfg` in your own git repository**: it is the whole server state worth keeping.
 - [ ] **Rotate the RCON password** if you deployed before 2026-04-23: the pre-rotation value that was hardcoded in `server.cfg` remains in git history and is compromised. See [SECURITY.md](SECURITY.md).
-- [ ] **Upgrade if you run v1.3.0 to v1.6.0.** In those releases `server.cfg` carried a literal RCON password where the placeholder belonged, so `RCON_PASSWORD` from `.env` was ignored and the server answered rcon to the password published in this repository. From the release after them, the server uses yours again. See [SECURITY.md](SECURITY.md).
+- [ ] **Upgrade if you run v1.3.0 to v1.6.0.** In those releases `server.cfg` carried a literal RCON password where the placeholder belonged, so `RCON_PASSWORD` from `.env` was ignored. No packet a client sent reached those servers (see the 1.6.2 changelog), so nothing answered rcon on them; but a `server.cfg` kept from them would give that password rcon on a release that works, and from v1.6.3 the server refuses to start on it. Update the repository together with the image. See [SECURITY.md](SECURITY.md).
 
 ## Unattended updates
 

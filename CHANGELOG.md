@@ -7,7 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no unreleased changes yet)_
+### Security
+
+- **A password this repository published is refused at start.** Two RCON passwords are in this repository's history for anyone to read: the one hardcoded in `server.cfg` until 2026-04-23, and the one committed on 2026-09-03 and shipped in v1.3.0 through v1.6.0. Since v1.6.2 lets client packets reach the server, a `server.cfg` kept from those releases, or an `RCON_PASSWORD` copied from one, would hand rcon to anyone. The entrypoint now hashes every `rconpassword` the rendered configs set and refuses to start on either value, with an error that says how to fix it. Only their SHA-256 is in the image, and the value is never printed. CI plants v1.6.0's `server.cfg`, and the same value as `RCON_PASSWORD`, requires the refusal with the value in no log line, and requires rcon to answer the password from `.env` and refuse a wrong one.
+
+### Fixed
+
+- **A compose file older than v1.6.1 stops with a reason instead of restarting forever.** Up to v1.6.0 the compose file mounted `server.cfg` itself; the entrypoint since v1.6.1 renders a fresh `server.cfg` and could not remove a mount point, so an image from v1.6.1 on, started by an old compose file, died on "Device or resource busy" and restarted in a loop. It now says the compose file is older than v1.6.1 and that the repository must be updated with the image. CI starts v1.6.0's compose file on this image and requires that error.
+- **The v1.6.1 entry and SECURITY.md said more than happened.** They said every server on v1.3.0 through v1.6.0 answered rcon to the published password; none answered rcon at all, because no client packet reached the server before v1.6.2. SECURITY.md also said the entrypoint rejected the password hardcoded until 2026-04-23, and nothing did until this release. Both texts keep the original words, struck out, with the correction and its date; so do the v1.6.1 release notes.
+
+### Upgrading
+
+- **Update the repository together with the image:** `./update.sh` (or `git pull`), then `docker compose up -d`. A compose file from v1.0.0 to v1.6.0 cannot start an image from v1.6.1 on: until this release it restarted forever on "Device or resource busy", now it stops and says why. That is the safe direction, since nothing runs on a config the image cannot render, but the server is down until the repository is updated.
+- **If `.env` sets `QUAKE3_SERVER_IMAGE_TAG=heyvaldemar/quake3-server:latest`**, remove that line. v1.0.0's `.env.example` set it uncommented, and with it every pull moves the image while the compose file stays where it was; since `latest` became the v1.6.1 build on 2026-11-08, such a host stops at start as above. Without the line, the compose file's pin applies: the image this release was tested with.
+- **If the server refuses to start with "an rconpassword this repository once published"**, put `seta rconpassword "%RCON_PASSWORD%"` back in `server.cfg` and set a new `RCON_PASSWORD` in `.env`.
 
 ## [1.6.2] - 2026-11-08
 
@@ -19,7 +32,7 @@ _(no unreleased changes yet)_
 
 ### Security
 
-- **`RCON_PASSWORD` is the password the server uses again.** From v1.3.0 through v1.6.0, `server.cfg` carried a literal RCON password where the `%RCON_PASSWORD%` placeholder belonged: the entrypoint rewrote the bind-mounted `server.cfg` in place at every start, so the password of one run ended up in a working copy and was committed with it on 2026-09-03 (5afa1fb). With the placeholder gone, `RCON_PASSWORD` from `.env` was silently ignored, and every server on those releases, and the image built from them, answered rcon to the password published in this repository. The placeholder is back; the compose file mounts `server.cfg` read-only as a template, and the entrypoint renders it into the config the server reads inside the container (mode 600), so the checkout's file never changes; a template without the placeholder gets a loud warning at start. CI now checks that the server's config carries `RCON_PASSWORD` and that the checkout's `server.cfg` still carries the placeholder after a start. **Upgrade if you run any of those releases.**
+- **`RCON_PASSWORD` is the password the server uses again.** From v1.3.0 through v1.6.0, `server.cfg` carried a literal RCON password where the `%RCON_PASSWORD%` placeholder belonged: the entrypoint rewrote the bind-mounted `server.cfg` in place at every start, so the password of one run ended up in a working copy and was committed with it on 2026-09-03 (5afa1fb). With the placeholder gone, `RCON_PASSWORD` from `.env` was silently ignored~~, and every server on those releases, and the image built from them, answered rcon to the password published in this repository~~. *Corrected 2026-11-08: the struck-out claim was wrong. Up to v1.6.2 no packet a client sent reached the server (see 1.6.2), so no server on those releases answered rcon at all; measured on the images v1.3.0, v1.6.0 and v1.6.1 shipped, rcon with that password got no answer. The one way it works is v1.6.2 started with a `server.cfg` kept from those releases, and v1.6.3 refuses to start on it.* The placeholder is back; the compose file mounts `server.cfg` read-only as a template, and the entrypoint renders it into the config the server reads inside the container (mode 600), so the checkout's file never changes; a template without the placeholder gets a loud warning at start. CI now checks that the server's config carries `RCON_PASSWORD` and that the checkout's `server.cfg` still carries the placeholder after a start. **Upgrade if you run any of those releases.**
 - **The RCON password is no longer on a command line.** The entrypoint substituted it with `sed "s|%RCON_PASSWORD%|<password>|g"`, putting it in `sed`'s arguments, which every user on the host reads with `ps`. `awk` now takes it from its environment and splices it in by position, so `|`, `&` and `\` in a password are no longer read as syntax either. CI reads every command line on the runner and in the container and requires the password on none.
 
 ### Added

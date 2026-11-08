@@ -225,6 +225,22 @@ jobs:
           [ "$s" = healthy ] || { echo "::error::never healthy"; docker inspect "$cid" --format '{{json .State.Health.Log}}' | tail -c 600; exit 1; }
           docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec -T quake3-server node /healthcheck.js
 
+      - name: rcon answers RCON_PASSWORD from .env, and refuses a wrong one
+        # The control for the refusal below: through the players' WebSocket,
+        # `rcon <RCON_PASSWORD> status` must come back with the status table and
+        # a wrong password with "Bad rconpassword". The probe reads the password
+        # from the container's own environment, so it is on no command line.
+        run: |
+          probe='const W=require("/quakejs/node_modules/ws");
+          const ask=(p)=>new Promise((r)=>{const w=new W("ws://127.0.0.1:27960");const t=setTimeout(()=>{w.close();r("")},4000);
+            w.on("open",()=>w.send(Buffer.concat([Buffer.from([255,255,255,255]),Buffer.from("rcon "+p+" status\n")])));
+            w.on("message",(d)=>{clearTimeout(t);w.close();r(Buffer.from(d).toString("latin1",4))});w.on("error",()=>r(""))});
+          (async()=>{const a=await ask(process.env.RCON_PASSWORD);await new Promise((r)=>setTimeout(r,1500));const b=await ask("wrong-"+Date.now());
+            const ok=/^print\n/.test(a)&&/^map:/m.test(a);const no=/Bad rconpassword/.test(b);
+            console.log("rcon with RCON_PASSWORD: "+(ok?"the status table":"no status table")+"; with a wrong password: "+(no?"refused":"NOT refused"));
+            process.exit(ok&&no?0:1)})()'
+          docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec -T quake3-server node -e "$probe"
+
       - name: On the scoreboard too - after the fraglimit, with the log silent, the game still answers
         # In QuakeJS (retail 1.32 game code) the intermission after the
         # fraglimit ends only when a human is ready, and bots never are: an
@@ -268,6 +284,53 @@ jobs:
           docker rm -f q3-v161 >/dev/null
           echo "v1.6.1's image: the old check exits $o, the new one exits $n"
           [ "$o" = 0 ] && [ "$n" = 1 ] || { echo "::error::expected the old check to pass (0) and the new to fail (1)"; exit 1; }
+
+      - name: Plant - the password v1.6.0 published is refused at start, and so is an old compose file
+        # v1.3.0 to v1.6.0 shipped a literal rconpassword in server.cfg. With
+        # v1.6.2's working WebSocket, a server.cfg kept from those releases
+        # would hand rcon to anyone, so the entrypoint now refuses to start on
+        # it, by its SHA-256. Three plants, each must stop the container with
+        # the entrypoint's ERROR: v1.6.0's server.cfg as the template; the same
+        # value as RCON_PASSWORD; and v1.6.0's own compose file, which mounts
+        # server.cfg itself and used to restart forever on "resource busy".
+        # The value is read from git into a 600 file and only ever counted:
+        # no log line here may carry it.
+        run: |
+          git fetch --depth=1 --quiet origin refs/tags/v1.6.0:refs/tags/v1.6.0
+          umask 077
+          git show v1.6.0:server.cfg > .ci-published.cfg
+          pw="$(mktemp)"
+          sed -nE 's/^seta rconpassword "([^"]*)".*/\1/p' .ci-published.cfg > "$pw"
+          [ -s "$pw" ] || { echo "::error::v1.6.0's server.cfg sets no rconpassword; the plant would prove nothing"; exit 1; }
+          awk -v f="$pw" 'BEGIN { getline p < f } /^RCON_PASSWORD=/ { print "RCON_PASSWORD=" p; next } { print }' .env > .ci-published.env
+          umask 022
+          printf '%s\n' 'services:' '  quake3-server:' '    volumes: !override' \
+            '      - ./.ci-published.cfg:/quakejs/base/baseq3/server.cfg.template:ro' > .ci-published.yml
+          git show v1.6.0:"$DOCKER_COMPOSE_FILE" > .ci-v160.yml
+          refused() {  # what: expected ERROR text, then the compose arguments
+            local what=$1 expect=$2; shift 2
+            docker compose "$@" -p "$COMPOSE_PROJECT_NAME" up -d --force-recreate quake3-server >/dev/null 2>&1
+            local cid; cid="$(docker compose "$@" -p "$COMPOSE_PROJECT_NAME" ps -aq quake3-server)"
+            sleep 20
+            local logs; logs="$(docker logs "$cid" 2>&1)"
+            local leak; leak="$(grep -cF -f "$pw" <<<"$logs" || true)"
+            local st; st="$(docker inspect -f '{{.State.Status}} {{.RestartCount}}' "$cid")"
+            local err; err="$(grep -m1 '^ERROR' <<<"$logs" || true)"
+            echo "$what: state $st; ${err:-no ERROR line}; log lines carrying the value: $leak"
+            [ "$leak" = 0 ] || { echo "::error::$what: the log carries the value"; return 1; }
+            [[ $err == *"$expect"* ]] || { echo "::error::$what: started, or stopped without the expected error"; return 1; }
+            [[ $st != running* ]] || { echo "::error::$what: still running"; return 1; }
+          }
+          rc=0
+          refused "v1.6.0's server.cfg" "rconpassword this repository once published" \
+            -f "$DOCKER_COMPOSE_FILE" -f .ci-published.yml || rc=1
+          refused "RCON_PASSWORD set to it" "rconpassword this repository once published" \
+            --env-file .ci-published.env -f "$DOCKER_COMPOSE_FILE" || rc=1
+          refused "v1.6.0's compose file" "is mounted from the host" \
+            -f .ci-v160.yml || rc=1
+          docker compose -f .ci-v160.yml -p "$COMPOSE_PROJECT_NAME" down >/dev/null 2>&1 || true
+          rm -f "$pw" .ci-published.cfg .ci-published.env .ci-published.yml .ci-v160.yml
+          exit "$rc"
 
       - name: Show container logs on failure
         if: failure()

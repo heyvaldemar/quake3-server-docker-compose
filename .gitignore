@@ -291,3 +291,10 @@ xcuserdata/
 # Files the CI scoreboard test writes beside the compose file.
 .ci-intermission.cfg
 .ci-intermission.yml
+
+# Files the CI refusal test writes: the password v1.6.0 published, and the
+# v1.6.0 compose file. Never commit them.
+.ci-published.cfg
+.ci-published.env
+.ci-published.yml
+.ci-v160.yml

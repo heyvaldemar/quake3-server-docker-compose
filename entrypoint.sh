@@ -49,8 +49,19 @@ fi
 # `sed "s|%RCON_PASSWORD%|<password>|g"` put it in sed's arguments, which every
 # user on the host reads with ps. awk takes it from ENVIRON and splices it in
 # by position, so nothing in the value (|, &, \) is read as syntax either.
+#
+# A COMPOSE FILE FROM BEFORE v1.6.1 MOUNTS server.cfg ITSELF. That file is
+# then the mount point, the `rm` below fails with "Device or resource busy",
+# and the container restarts forever. Say what it is instead: the image was
+# updated without the repository.
 umask 077
 for cfg in /quakejs/base/baseq3/server.cfg /quakejs/base/cpma/server.cfg; do
+  if awk -v p="$cfg" '$5 == p { found = 1 } END { exit !found }' /proc/self/mountinfo; then
+    echo "ERROR: $cfg is mounted from the host, so this compose file is older than v1.6.1." >&2
+    echo "       From v1.6.1 the compose file mounts server.cfg read-only as server.cfg.template." >&2
+    echo "       Update the repository together with the image: ./update.sh (or git pull), then docker compose up -d." >&2
+    exit 1
+  fi
   [ -f "$cfg.template" ] || { [ -f "$cfg" ] && cp "$cfg" "$cfg.template"; } || continue
   if ! grep -q '%RCON_PASSWORD%' "$cfg.template"; then
     echo "WARNING: $cfg.template has no %RCON_PASSWORD% placeholder, so RCON_PASSWORD is NOT applied:" >&2
@@ -63,6 +74,50 @@ for cfg in /quakejs/base/baseq3/server.cfg /quakejs/base/cpma/server.cfg; do
          print out s }' "$cfg.template" > "$cfg"
 done
 umask 022
+
+# A PASSWORD THIS REPOSITORY PUBLISHED IS REFUSED, wherever it comes from.
+# Two were: the one hardcoded in server.cfg until 2026-04-23, and the one
+# committed on 2026-09-03 and released in v1.3.0 through v1.6.0. Both are in
+# git history for anyone to read. A server.cfg kept from those releases, or an
+# RCON_PASSWORD copied from one, would hand rcon to anyone; so every
+# rconpassword the rendered configs set is hashed and compared, and a match
+# stops the start. Only the SHA-256 of each value is here, and the value
+# itself is never printed: read from the file by awk, hashed through a pipe.
+PUBLISHED_RCON_SHA256="
+e57002538a21164d17ff2bc9b3a312d21675ab6d26ea63554912b11ffd58a581
+1ec1784f9a2d02d71a2c69c4fa7a074075c2efa7da0f0afac2420f68cfcd42f4
+"
+for cfg in /quakejs/base/baseq3/server.cfg /quakejs/base/cpma/server.cfg; do
+  [ -f "$cfg" ] || continue
+  # Every value an rconpassword command sets, as Quake 3 reads it: commands
+  # split at ";", "//" starts a comment, a quoted value runs to its closing
+  # quote and a bare one to the first blank; seta/set/sets/setu, any case.
+  if ! awk '{
+        sub(/\r$/, "")
+        n = split($0, part, ";")
+        for (k = 1; k <= n; k++) {
+          s = part[k]; sub(/^[ \t]+/, "", s)
+          if (substr(s, 1, 2) == "//") break
+          low = tolower(s)
+          if (low ~ /^set[asu]?[ \t]+rconpassword([ \t]|$)/) sub(/^[A-Za-z]+[ \t]+[A-Za-z]+[ \t]*/, "", s)
+          else if (low ~ /^rconpassword([ \t]|$)/) sub(/^[A-Za-z]+[ \t]*/, "", s)
+          else continue
+          if (substr(s, 1, 1) == "\"") { s = substr(s, 2); i = index(s, "\""); if (i) s = substr(s, 1, i - 1) }
+          else sub(/[ \t].*$/, "", s)
+          print s
+        }
+      }' "$cfg" | while IFS= read -r v; do
+        h=$(printf '%s' "$v" | sha256sum | cut -c1-64)
+        case "$PUBLISHED_RCON_SHA256" in *"$h"*) exit 1 ;; esac
+      done; then
+    echo "ERROR: $cfg sets an rconpassword this repository once published, so anyone can use rcon on this server." >&2
+    echo "       Refusing to start. Put the placeholder back in server.cfg:" >&2
+    echo "         seta rconpassword \"%RCON_PASSWORD%\"" >&2
+    echo "       and set RCON_PASSWORD in .env to a new value (openssl rand -base64 24 | tr -d '/+=' | head -c 32)." >&2
+    echo "       See SECURITY.md." >&2
+    exit 1
+  fi
+done
 
 # Update the QuakeJS web client to use the current server's hostname so
 # browser-based clients connect to the same machine that served the page.
