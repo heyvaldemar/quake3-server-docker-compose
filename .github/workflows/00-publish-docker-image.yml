@@ -72,6 +72,10 @@ jobs:
           new="${GITHUB_SHA}@${DIGEST}"
           sed -i -E "s|[0-9a-f]{40}@sha256:[0-9a-f]{64}|${new}|" quake3-server-docker-compose.yml
           grep -q "$new" quake3-server-docker-compose.yml || { echo "pin pattern not found in the compose file" >&2; exit 1; }
+          # The commented default in .env.example names the same build; left
+          # behind, conformance reports the two disagreeing (2026-11-08).
+          sed -i -E "s|^(# *QUAKE3_SERVER_IMAGE_VERSION=)[0-9a-f]{40}$|\1${GITHUB_SHA}|" .env.example
+          grep -q "^# *QUAKE3_SERVER_IMAGE_VERSION=${GITHUB_SHA}$" .env.example || { echo "the .env.example default was not moved" >&2; exit 1; }
           if git diff --quiet; then
             echo "compose file already pins $new"
             exit 0
