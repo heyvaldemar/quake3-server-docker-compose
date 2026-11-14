@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no unreleased changes yet)_
+### Fixed
+
+- **A stop no longer waits out the grace period.** `entrypoint.sh` ends in `exec node`, which made node the container's process 1, and node as process 1 does not act on SIGTERM: every stop and restart waited Docker's ten seconds and ended in SIGKILL (`tests/clean-stop.sh`: 10 s of 10, exit 137, [run 43620383525](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/runs/43620383525)). The compose file now runs Docker's init (tini) as process 1, with `TINI_KILL_PROCESS_GROUP`, so SIGTERM reaches node. Quake III keeps no world, so nothing was lost, only the wait. CI now fails a stop that needs Docker's SIGKILL: 0 s of 10, exit 143 ([run 43622886214](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/runs/43622886214)).
+- **The secret probe's excerpt of a leaked line replaces Steam IDs and addresses too**, and its selftest reaches the log through any process that shares process 1's output.
 
 ## [1.6.4] - 2026-11-14
 

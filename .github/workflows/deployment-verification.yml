@@ -294,8 +294,12 @@ jobs:
         env:
           CLEAN_STOP_PROJECT: quake3-server
           CLEAN_STOP_COMPOSE: quake3-server-docker-compose.yml
+        # node used to be process 1 and not act on SIGTERM (10 s of 10, exit
+        # 137, run 43620383525); with Docker's init the stop must not need
+        # Docker's SIGKILL.
         run: |
-          tests/clean-stop.sh quake3-server -
+          out="$(tests/clean-stop.sh quake3-server -)"; echo "$out"
+          if grep -q 'Docker sent SIGKILL' <<<"$out"; then echo "::error::the stop still ended in Docker's SIGKILL"; exit 1; fi
           docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" up -d quake3-server >/dev/null
 
       - name: Plant - a handshake is not a game - the image v1.6.1 shipped is unhealthy

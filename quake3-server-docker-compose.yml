@@ -13,6 +13,13 @@ x-images:
 services:
   quake3-server:
     image: *quake3-server-image
+    # A STOP REACHES THE GAME. entrypoint.sh ends in exec node, which made it
+    # process 1, and node as process 1 does not act on SIGTERM: every stop
+    # and restart waited Docker's ten seconds and ended in SIGKILL (10 s of
+    # 10, exit 137, CI run 43620383525). Docker's init (tini) is process 1
+    # now, and with TINI_KILL_PROCESS_GROUP below it hands SIGTERM to node,
+    # which then ends at once.
+    init: true
     # Hardening: no privilege escalation via setuid binaries
     security_opt:
       - no-new-privileges:true
@@ -67,6 +74,8 @@ services:
       # git. The entrypoint renders this template into the container instead.
       - ./server.cfg:/quakejs/base/baseq3/server.cfg.template:ro
     environment:
+      # tini (init: true) signals the whole process group.
+      TINI_KILL_PROCESS_GROUP: "1"
       # THE GAME GETS THE HOUSEHOLD CLOCK TOO, not only whatever sidecar
       # sits beside it. Every timestamp this server writes — bans, joins,
       # the crash it leaves behind — is read next to a log line from
