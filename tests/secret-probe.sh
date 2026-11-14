@@ -306,7 +306,11 @@ case "$mode" in
       exit 1
     fi
     printf 'CANARY\t%s\n' "$(cat "$WORK/value")" >"$WORK/vf"
-    out="$(printf 'joined: %s from 76561198012345678 and 76561202000000001, STEAM_0:1:23456, [U:1:46913] [U:1:46914:1], at 203.0.113.7, 2001:db8:5::7 and ::ffff:a00:1\n' "$(cat "$WORK/value")" | excerpt "$WORK/vf" selftest)"
+    # Steam IDs and addresses made here, out of the ranges real accounts and
+    # hosts use (account 0, documentation networks), so this file names none.
+    z12="$(printf '%012d' 0)"; z11="$(printf '%011d' 1)"
+    out="$(printf 'joined: %s from %s and %s, %s, %s %s, at %s, %s and %s\n' "$(cat "$WORK/value")" "76561$z12" "765612$z11" \
+      "STEAM_0:0:0" "[U:1:0]" "[U:1:0:1]" "203.0.113.7" "2001:db8:5::7" "::ffff:a00:1" | excerpt "$WORK/vf" selftest)"
     if grep -q -F -f "$WORK/value" <<<"$out" || grep -q -E '76561|STEAM_0|U:1:|203[.]0[.]113|2001:db8|ffff' <<<"$out" \
        || [[ $out != *"<CANARY>"* || $out != *"<id>"* || $out != *"<ip>"* ]]; then
       echo "::error::secret-probe selftest: a leaked line would print a value, a Steam ID or an address"

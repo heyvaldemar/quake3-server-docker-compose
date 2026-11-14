@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no unreleased changes yet)_
+### Changed
+
+- **The secret probe's selftest makes its Steam IDs and addresses at run time, out of the ranges real accounts and hosts use**, so the file names none. Tests only.
 
 ## [1.6.5] - 2026-11-14
 
