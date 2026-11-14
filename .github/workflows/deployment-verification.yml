@@ -35,7 +35,7 @@ jobs:
         run: |
           docker run --rm -v "$PWD:/mnt" -w /mnt \
             koalaman/shellcheck-alpine:stable \
-            shellcheck ./*.sh
+            shellcheck ./*.sh tests/*.sh
 
       - name: hadolint (Dockerfile linting)
         run: |
@@ -60,6 +60,12 @@ jobs:
     env:
       DOCKER_COMPOSE_FILE: quake3-server-docker-compose.yml
       COMPOSE_PROJECT_NAME: quake3-server
+      # tests/secret-probe.sh: RCON_PASSWORD gets a value of its own, and it
+      # may not reach docker compose logs, a command line in the container or
+      # the host's ps.
+      PROBE_PROJECT: quake3-server
+      PROBE_COMPOSE: quake3-server-docker-compose.yml
+      PROBE_EXPECT: RCON_PASSWORD
 
     steps:
       - name: Checkout repository
@@ -97,8 +103,11 @@ jobs:
           cat > .env <<EOF
           QUAKE3_SERVER_IMAGE_TAG=heyvaldemar/quake3-server:ci
           QUAKE3_SERVER_IP_OR_HOSTNAME=127.0.0.1
-          RCON_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=' | head -c 32)
           EOF
+          # RCON_PASSWORD: tests/secret-probe.sh plant writes a random one by awk
+          # through its environment, never on a command line, and keeps it for
+          # the probe.
+          tests/secret-probe.sh plant
           echo "Generated ephemeral .env for CI run"
 
       - name: Upgrade drill — the previous release comes up first, on the volumes this run will upgrade
@@ -239,7 +248,10 @@ jobs:
             const ok=/^print\n/.test(a)&&/^map:/m.test(a);const no=/Bad rconpassword/.test(b);
             console.log("rcon with RCON_PASSWORD: "+(ok?"the status table":"no status table")+"; with a wrong password: "+(no?"refused":"NOT refused"));
             process.exit(ok&&no?0:1)})()'
-          docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec -T quake3-server node -e "$probe"
+          tests/secret-probe.sh check "first start"
+          # The rcon client, watched: every command line in the container and
+          # on the host is sampled while it runs.
+          tests/secret-probe.sh during "rcon status" docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec -T quake3-server node -e "$probe"
 
       - name: On the scoreboard too - after the fraglimit, with the log silent, the game still answers
         # In QuakeJS (retail 1.32 game code) the intermission after the
@@ -267,6 +279,24 @@ jobs:
           s="$(docker inspect "$cid" --format '{{.State.Health.Status}}')"
           echo "docker health on the silent scoreboard: $s"
           [ "$s" = healthy ] || { echo "::error::unhealthy on the scoreboard"; exit 1; }
+
+      - name: After a restart, the probe looks again; and it sees what it looks for
+        run: |
+          dc() { docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" "$@"; }
+          cid="$(dc ps -q quake3-server)"
+          dc restart quake3-server >/dev/null
+          for _ in $(seq 1 60); do [ "$(docker inspect -f '{{.State.Health.Status}}' "$cid")" = healthy ] && break; sleep 5; done
+          echo "health after the restart: $(docker inspect -f '{{.State.Health.Status}}' "$cid")"
+          tests/secret-probe.sh check "after a restart"
+          tests/secret-probe.sh selftest
+
+      - name: A stop - timed, with its exit code (tests/clean-stop.sh; no world to save)
+        env:
+          CLEAN_STOP_PROJECT: quake3-server
+          CLEAN_STOP_COMPOSE: quake3-server-docker-compose.yml
+        run: |
+          tests/clean-stop.sh quake3-server -
+          docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" up -d quake3-server >/dev/null
 
       - name: Plant - a handshake is not a game - the image v1.6.1 shipped is unhealthy
         # Every release up to v1.6.1 answered the WebSocket handshake while the
@@ -338,5 +368,7 @@ jobs:
 
       - name: Shutdown Docker Compose services
         if: always()
-        run: docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" down
+        run: |
+          docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" down
+          rm -f "$RUNNER_TEMP/secret-probe.values"
 

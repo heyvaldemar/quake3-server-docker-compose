@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no unreleased changes yet)_
+### Added
+
+- **CI looks for the rcon password everywhere it could leak to.** `tests/secret-probe.sh` gives `RCON_PASSWORD` a value of its own and fails on it in `docker compose logs`, on any command line in the container or in the host's `ps`, after the first start, while an rcon client runs and after a restart; it names the variable and the place, never the value. It found nothing ([run 43620383525](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/runs/43620383525)).
+- **A stop is measured.** `tests/clean-stop.sh` times `docker compose stop`: 10 seconds of Docker's default 10-second grace period, exit 137, Docker's SIGKILL. node, process 1, does not act on SIGTERM, so every stop waits the ten seconds. Quake III keeps no world to save; the README says so.
 
 ## [1.6.3] - 2026-11-08
 

@@ -129,6 +129,9 @@ The container runs with `security_opt: no-new-privileges:true`, so a process can
 
 The [Deployment Verification](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/workflows/deployment-verification.yml?query=branch%3Amain) workflow runs on every push, pull request, and every day at 06:00 UTC: ShellCheck, hadolint and actionlint; a build of the image from the checkout; a Trivy scan of that build; a deploy job that boots the stack with an ephemeral RCON password and requires the web client to answer 200, the game port to listen, and the game to answer `getstatus` through its WebSocket, also on the scoreboard after a fraglimit of 1, with the log silent for 90 seconds; a plant that runs the new health check against the image v1.6.1 shipped, which it must call unhealthy while the old check calls it healthy; and, on the daily run, the pin freshness check against Docker Hub.
 
+
+`tests/secret-probe.sh` gives `RCON_PASSWORD` a value of its own and looks for it in `docker compose logs`, on every command line in the container and in the host's `ps`, after the first start, while an rcon client runs and after a restart, naming the place, never the value; it finds nothing. `tests/clean-stop.sh` times a `docker compose stop`: 10 seconds of Docker's default 10-second grace period and exit 137, Docker's SIGKILL, because node, process 1 here, does not act on SIGTERM. A Quake III server keeps no world, so nothing is lost; a stop simply waits the ten seconds.
+
 ---
 
 ## About the maintainer
