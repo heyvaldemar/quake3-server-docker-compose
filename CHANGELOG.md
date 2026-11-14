@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no unreleased changes yet)_
+
+## [1.6.5] - 2026-11-14
+
 ### Fixed
 
 - **A stop no longer waits out the grace period.** `entrypoint.sh` ends in `exec node`, which made node the container's process 1, and node as process 1 does not act on SIGTERM: every stop and restart waited Docker's ten seconds and ended in SIGKILL (`tests/clean-stop.sh`: 10 s of 10, exit 137, [run 43620383525](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/runs/43620383525)). The compose file now runs Docker's init (tini) as process 1, with `TINI_KILL_PROCESS_GROUP`, so SIGTERM reaches node. Quake III keeps no world, so nothing was lost, only the wait. CI now fails a stop that needs Docker's SIGKILL: 0 s of 10, exit 143 ([run 43622886214](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/runs/43622886214)).
@@ -238,7 +242,8 @@ Earlier commits did not follow Keep-a-Changelog. Highlights:
 - **2026-04:** beginning of the supply-chain hardening track aligned with
   [heyvaldemar/aws-kubectl-docker](https://github.com/heyvaldemar/aws-kubectl-docker).
 
-[Unreleased]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.6.4...HEAD
+[Unreleased]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.6.5...HEAD
+[1.6.5]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.6.4...v1.6.5
 [1.6.4]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.6.3...v1.6.4
 [1.6.3]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.6.2...v1.6.3
 [1.6.2]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.6.1...v1.6.2
