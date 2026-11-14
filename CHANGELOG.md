@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no unreleased changes yet)_
+
+## [1.6.4] - 2026-11-14
+
 ### Added
 
 - **CI looks for the rcon password everywhere it could leak to.** `tests/secret-probe.sh` gives `RCON_PASSWORD` a value of its own and fails on it in `docker compose logs`, on any command line in the container or in the host's `ps`, after the first start, while an rcon client runs and after a restart; it names the variable and the place, never the value. It found nothing ([run 43620383525](https://github.com/heyvaldemar/quake3-server-docker-compose/actions/runs/43620383525)).
@@ -231,7 +235,8 @@ Earlier commits did not follow Keep-a-Changelog. Highlights:
 - **2026-04:** beginning of the supply-chain hardening track aligned with
   [heyvaldemar/aws-kubectl-docker](https://github.com/heyvaldemar/aws-kubectl-docker).
 
-[Unreleased]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.6.3...HEAD
+[Unreleased]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.6.4...HEAD
+[1.6.4]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.6.3...v1.6.4
 [1.6.3]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.6.2...v1.6.3
 [1.6.2]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.6.1...v1.6.2
 [1.6.1]: https://github.com/heyvaldemar/quake3-server-docker-compose/compare/v1.6.0...v1.6.1
